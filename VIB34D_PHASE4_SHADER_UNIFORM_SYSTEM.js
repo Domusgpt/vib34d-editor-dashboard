@@ -734,6 +734,68 @@ class EnhancedShaderManager extends window.VIB34D_Phase1.ShaderManager {
         }
         return value >= range[0] && value <= range[1];
     }
+    
+    // ============================================================================
+    // 🔧 CRITICAL MISSING METHODS FOR MCP COMPATIBILITY
+    // ============================================================================
+    
+    /**
+     * Register a new uniform with type, default value, and validation range
+     * Required by external systems and MCP integration
+     */
+    registerUniform(name, type, defaultValue, range) {
+        console.log(`🎛️ Registering uniform: ${name} (${type})`);
+        
+        // Add to uniform definitions if not exists
+        if (!this.uniformDefinitions[name]) {
+            this.uniformDefinitions[name] = {
+                type: type === 'float' ? '1f' : type, // Convert common types
+                default: defaultValue,
+                range: range ? [range.min, range.max] : null,
+                category: 'custom',
+                description: `Custom registered uniform: ${name}`
+            };
+        }
+        
+        // Set initial value
+        this.setUniform(name, defaultValue);
+        
+        console.log(`✅ Uniform ${name} registered successfully`);
+        return true;
+    }
+    
+    /**
+     * Batch update multiple uniforms efficiently 
+     * Required by external systems and MCP integration
+     */
+    batchUpdateUniforms(uniformObject) {
+        console.log(`🎛️ Batch updating ${Object.keys(uniformObject).length} uniforms`);
+        
+        // Use existing setUniforms method which is more efficient
+        const successCount = this.setUniforms(uniformObject);
+        
+        console.log(`✅ Batch updated ${successCount} uniforms`);
+        return successCount;
+    }
+    
+    /**
+     * Synchronize all dirty uniforms to GPU
+     * Required by external systems and MCP integration
+     */
+    syncToGPU() {
+        console.log('⚡ Syncing uniforms to GPU...');
+        
+        // Use existing updateUniforms method for GPU sync
+        const success = this.updateUniforms();
+        
+        if (success) {
+            console.log(`✅ GPU sync completed successfully`);
+        } else {
+            console.warn('⚠️ GPU sync failed - no program or dirty uniforms');
+        }
+        
+        return success;
+    }
 }
 
 // ============================================================================
