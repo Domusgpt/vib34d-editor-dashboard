@@ -2972,14 +2972,17 @@
             }
             
             handleDrag(e) {
-                if (!this.isDragging || this.isTransitioning) return;
+                if (!this.isDragging || this.isTransitioning || !e) return;
+                
+                // Safely prevent default if possible
+                if (e.preventDefault && typeof e.preventDefault === 'function') {
+                    e.preventDefault();
+                }
                 
                 // Handle both mouse and touch events
                 const clientX = e.clientX !== undefined ? e.clientX : e.pageX;
                 const clientY = e.clientY !== undefined ? e.clientY : e.pageY;
                 if (!clientX || !clientY) return;
-                
-                e.preventDefault();
                 
                 const currentTime = performance.now();
                 const deltaTime = currentTime - this.lastDragTime;
@@ -3395,9 +3398,21 @@
         
     </script>
 
-    <!-- VIB34D INTEGRATION INJECT -->
-    <script src="VIB34D_BLOG_INTEGRATION_INJECT.js?v=2"></script>
+    <!-- VIB34D COMPLETE SYSTEM LOADING -->
+    <script src="VIB34D_PHASE1_CORE_ARCHITECTURE.js"></script>
+    <script src="VIB34D_PHASE2_GEOMETRY_IMPLEMENTATIONS.js"></script>
+    <script src="VIB34D_PHASE3_PROJECTION_SYSTEM.js"></script>
+    <script src="VIB34D_PHASE4_SHADER_UNIFORM_SYSTEM.js"></script>
+    <script src="VIB34D_PHASE5_INTERACTION_INTEGRATION.js"></script>
+    <script src="VIB34D_PHASE6_CHROMATIC_INTEGRATION.js"></script>
+    <script src="VIB34D_PHASE7_VIB3_INTEGRATION.js"></script>
+    <script src="VIB34D_PHASE8_EDITOR_DASHBOARD.js"></script>
+    
+    <!-- ENHANCED SYSTEMS -->
     <script src="VIB34D_MOIRE_RGB_SYSTEM.js"></script>
     <script src="VIB34D_ENHANCED_MOIRE_INTEGRATION.js"></script>
+    
+    <!-- INTEGRATION INJECT (BACKUP) -->
+    <script src="VIB34D_BLOG_INTEGRATION_INJECT.js?v=2"></script>
 </body>
 </html>
