@@ -1966,17 +1966,21 @@
                 this.gl.uniform1f(this.uniforms.density, interpolated.density);
                 this.gl.uniform1f(this.uniforms.speed, interpolated.speed);
                 this.gl.uniform3fv(this.uniforms.color, new Float32Array(interpolated.color));
-                // SAFETY CHECK FOR UNDEFINED PROPERTIES
+                // ENSURE INSTANCEPARAMS EXISTS (should be set in constructor)
                 if (!this.instanceParams) {
-                    console.error('instanceParams is undefined in render method');
-                    return;
+                    this.instanceParams = {
+                        intensity: 0.5,
+                        densityMult: 1.0,
+                        speedMult: 1.0,
+                        colorShift: 0.0
+                    };
                 }
                 
-                // Ensure instanceParams has safe defaults
-                const safeIntensity = (this.instanceParams && this.instanceParams.intensity !== undefined) ? this.instanceParams.intensity : 0.5;
-                const safeDensityMult = (this.instanceParams && this.instanceParams.densityMult !== undefined) ? this.instanceParams.densityMult : 1.0;
-                const safeSpeedMult = (this.instanceParams && this.instanceParams.speedMult !== undefined) ? this.instanceParams.speedMult : 1.0;
-                const safeColorShift = (this.instanceParams && this.instanceParams.colorShift !== undefined) ? this.instanceParams.colorShift : 0.0;
+                // Safe parameter access
+                const safeIntensity = this.instanceParams.intensity || 0.5;
+                const safeDensityMult = this.instanceParams.densityMult || 1.0;
+                const safeSpeedMult = this.instanceParams.speedMult || 1.0;
+                const safeColorShift = this.instanceParams.colorShift || 0.0;
                 
                 this.gl.uniform1f(this.uniforms.intensity, safeIntensity);
                 this.gl.uniform1f(this.uniforms.instanceDensity, safeDensityMult);
