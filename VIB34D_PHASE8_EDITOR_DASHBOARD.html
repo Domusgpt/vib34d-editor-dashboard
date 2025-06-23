@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D Editor Dashboard | Phase 8 Implementation</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* Dashboard Container */
+        .dashboard-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        
+        /* Visualization Area */
+        .visualization-area {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(ellipse at center, #1a0033 0%, #000000 70%);
+        }
+        
+        #visualization-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            width: 400px;
+            background: rgba(0, 0, 0, 0.95);
+            border-left: 2px solid rgba(255, 0, 255, 0.5);
+            overflow-y: auto;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-panel h1 {
+            color: #ff00ff;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+        
+        /* Control Groups */
+        .control-group {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 0, 255, 0.05);
+            border: 1px solid rgba(255, 0, 255, 0.2);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .control-group:hover {
+            background: rgba(255, 0, 255, 0.08);
+            border-color: rgba(255, 0, 255, 0.4);
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.2);
+        }
+        
+        .control-group h3 {
+            color: #00ffff;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Dropdown Controls */
+        .dropdown-control {
+            margin-bottom: 15px;
+        }
+        
+        .dropdown-control label {
+            display: block;
+            color: #ff00ff;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .dropdown-control select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 0, 255, 0.5);
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .dropdown-control select:hover {
+            background: rgba(255, 0, 255, 0.1);
+            border-color: #ff00ff;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.3);
+        }
+        
+        /* Slider Controls */
+        .slider-control {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .slider-control label {
+            display: flex;
+            justify-content: space-between;
+            color: #ff00ff;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .slider-value {
+            color: #00ffff;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: right;
+        }
+        
+        .slider-wrapper {
+            position: relative;
+            height: 30px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .slider-track {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 0, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .slider-fill {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            border-radius: 2px;
+            transition: width 0.1s ease;
+            box-shadow: 0 0 10px currentColor;
+        }
+        
+        .slider-input {
+            position: relative;
+            width: 100%;
+            height: 20px;
+            background: transparent;
+            cursor: pointer;
+            -webkit-appearance: none;
+            z-index: 2;
+        }
+        
+        .slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border: 2px solid #ff00ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.8);
+            transition: all 0.3s ease;
+        }
+        
+        .slider-input::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 25px rgba(255, 0, 255, 1);
+        }
+        
+        /* Pulse Effect for Active Controls */
+        .control-group.active {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                background: rgba(255, 0, 255, 0.05);
+                box-shadow: 0 0 20px rgba(255, 0, 255, 0.2);
+            }
+            50% { 
+                background: rgba(255, 0, 255, 0.15);
+                box-shadow: 0 0 40px rgba(255, 0, 255, 0.5);
+            }
+        }
+        
+        /* Preset Buttons */
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .preset-button {
+            padding: 10px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            color: #00ffff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .preset-button:hover {
+            background: rgba(0, 255, 255, 0.3);
+            border-color: #00ffff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 255, 0.4);
+        }
+        
+        .preset-button.active {
+            background: rgba(0, 255, 255, 0.5);
+            border-color: #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+        }
+        
+        /* Export/Import Buttons */
+        .io-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .io-button {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid rgba(255, 255, 0, 0.5);
+            color: #ffff00;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .io-button:hover {
+            background: rgba(255, 255, 0, 0.3);
+            border-color: #ffff00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 255, 0, 0.4);
+        }
+        
+        /* Status Display */
+        .status-display {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(255, 0, 255, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            backdrop-filter: blur(10px);
+            min-width: 250px;
+        }
+        
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        
+        .status-label {
+            color: #ff00ff;
+        }
+        
+        .status-value {
+            color: #00ffff;
+            font-weight: bold;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .control-panel {
+                position: absolute;
+                right: -400px;
+                transition: right 0.3s ease;
+            }
+            
+            .control-panel.open {
+                right: 0;
+            }
+            
+            .toggle-panel {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                background: rgba(255, 0, 255, 0.2);
+                border: 2px solid #ff00ff;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Visualization Area -->
+        <div class="visualization-area">
+            <canvas id="visualization-canvas"></canvas>
+        </div>
+        
+        <!-- Control Panel -->
+        <div class="control-panel" id="control-panel">
+            <h1>VIB34D Editor Dashboard</h1>
+            
+            <!-- Geometry Selection -->
+            <div class="control-group">
+                <h3>Geometry Selection</h3>
+                <div class="dropdown-control">
+                    <label for="geometry-select">Active Geometry</label>
+                    <select id="geometry-select">
+                        <option value="hypercube">Hypercube (4D Lattice)</option>
+                        <option value="hypersphere">Hypersphere (Shells)</option>
+                        <option value="hypertetrahedron">Hypertetrahedron (Planes)</option>
+                        <option value="torus">Torus (Flow)</option>
+                        <option value="kleinbottle">Klein Bottle (Topology)</option>
+                        <option value="fractal">Fractal (Recursive)</option>
+                        <option value="wave">Wave Function (Probability)</option>
+                        <option value="crystal">Crystal Lattice (Ordered)</option>
+                    </select>
+                </div>
+                
+                <div class="dropdown-control">
+                    <label for="projection-select">Projection Method</label>
+                    <select id="projection-select">
+                        <option value="perspective">Perspective (4D→3D)</option>
+                        <option value="orthographic">Orthographic (Parallel)</option>
+                        <option value="stereographic">Stereographic (Pole)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Core Mathematics Parameters -->
+            <div class="control-group">
+                <h3>Core Mathematics</h3>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Dimension</span>
+                        <span class="slider-value" id="dimension-value">4.00</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="dimension-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="dimension-slider" 
+                               min="3.0" max="5.0" step="0.01" value="4.0">
+                    </div>
+                </div>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Morph Factor</span>
+                        <span class="slider-value" id="morphFactor-value">0.70</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="morphFactor-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="morphFactor-slider" 
+                               min="0.0" max="1.5" step="0.01" value="0.7">
+                    </div>
+                </div>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Rotation Speed</span>
+                        <span class="slider-value" id="rotationSpeed-value">0.50</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="rotationSpeed-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="rotationSpeed-slider" 
+                               min="0.0" max="3.0" step="0.01" value="0.5">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Grid & Lattice Parameters -->
+            <div class="control-group">
+                <h3>Grid & Lattice</h3>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Grid Density</span>
+                        <span class="slider-value" id="gridDensity-value">8.0</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="gridDensity-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="gridDensity-slider" 
+                               min="1.0" max="25.0" step="0.1" value="8.0">
+                    </div>
+                </div>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Line Thickness</span>
+                        <span class="slider-value" id="lineThickness-value">0.030</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="lineThickness-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="lineThickness-slider" 
+                               min="0.002" max="0.1" step="0.001" value="0.03">
+                    </div>
+                </div>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Universe Modifier</span>
+                        <span class="slider-value" id="universeModifier-value">1.00</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="universeModifier-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="universeModifier-slider" 
+                               min="0.3" max="2.5" step="0.01" value="1.0">
+                    </div>
+                </div>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Pattern Intensity</span>
+                        <span class="slider-value" id="patternIntensity-value">1.30</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="patternIntensity-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="patternIntensity-slider" 
+                               min="0.0" max="3.0" step="0.01" value="1.3">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Effects & Color -->
+            <div class="control-group">
+                <h3>Effects & Color</h3>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Glitch Intensity</span>
+                        <span class="slider-value" id="glitchIntensity-value">0.02</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="glitchIntensity-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="glitchIntensity-slider" 
+                               min="0.0" max="0.15" step="0.001" value="0.02">
+                    </div>
+                </div>
+                
+                <div class="slider-control">
+                    <label>
+                        <span>Color Shift</span>
+                        <span class="slider-value" id="colorShift-value">0.00</span>
+                    </label>
+                    <div class="slider-wrapper">
+                        <div class="slider-track">
+                            <div class="slider-fill" id="colorShift-fill"></div>
+                        </div>
+                        <input type="range" class="slider-input" id="colorShift-slider" 
+                               min="-1.0" max="1.0" step="0.01" value="0.0">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Preset Management -->
+            <div class="control-group">
+                <h3>Presets</h3>
+                <div class="preset-buttons">
+                    <button class="preset-button" data-preset="hypercube_default">Hypercube Default</button>
+                    <button class="preset-button" data-preset="hypersphere_flow">Hypersphere Flow</button>
+                    <button class="preset-button" data-preset="tetrahedron_technical">Tetrahedron Tech</button>
+                    <button class="preset-button" data-preset="quantum_wave">Quantum Wave</button>
+                    <button class="preset-button" data-preset="crystal_lattice">Crystal Order</button>
+                    <button class="preset-button" data-preset="fractal_recursive">Fractal Deep</button>
+                </div>
+                
+                <div class="io-buttons">
+                    <button class="io-button" id="export-config">Export Config</button>
+                    <button class="io-button" id="import-config">Import Config</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Display -->
+        <div class="status-display">
+            <div style="color: #ff00ff; font-weight: bold; margin-bottom: 10px;">
+                ⚡ VIB34D System Status ⚡
+            </div>
+            <div class="status-row">
+                <span class="status-label">Phase:</span>
+                <span class="status-value">8 - Editor Dashboard</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">FPS:</span>
+                <span class="status-value" id="fps-display">60</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Interaction:</span>
+                <span class="status-value" id="interaction-display">IDLE</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Energy:</span>
+                <span class="status-value" id="energy-display">0.00</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load VIB34D Core Systems -->
+    <script src="VIB34D_PHASE1_CORE_ARCHITECTURE.js"></script>
+    <script src="VIB34D_PHASE2_GEOMETRY_IMPLEMENTATIONS.js"></script>
+    <script src="VIB34D_PHASE3_PROJECTION_SYSTEM.js"></script>
+    <script src="VIB34D_PHASE4_SHADER_UNIFORM_SYSTEM.js"></script>
+    <script src="VIB34D_PHASE5_INTERACTION_INTEGRATION.js"></script>
+    <script src="VIB34D_PHASE6_CHROMATIC_INTEGRATION.js"></script>
+    <script src="VIB34D_PHASE7_VIB3_INTEGRATION.js"></script>
+    
+    <script>
+        // ============================================================================
+        // VIB34D PHASE 8: EDITOR DASHBOARD IMPLEMENTATION
+        // ============================================================================
+        
+        class VIB34DEditorDashboard {
+            constructor() {
+                this.canvas = document.getElementById('visualization-canvas');
+                this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                
+                // Initialize VIB34D core systems
+                this.initializeCoreSystems();
+                
+                // Setup dashboard controls
+                this.setupControls();
+                
+                // Setup preset system
+                this.setupPresets();
+                
+                // Initialize WebGL
+                this.initializeWebGL();
+                
+                // Start render loop
+                this.startRenderLoop();
+                
+                console.log('🎛️ VIB34D Editor Dashboard initialized');
+            }
+            
+            initializeCoreSystems() {
+                // Initialize managers
+                this.geometryManager = new GeometryManager();
+                this.projectionManager = new ProjectionManager();
+                this.shaderManager = new ShaderManager(this.gl);
+                
+                // Initialize HypercubeCore
+                this.hypercubeCore = new HypercubeCore(
+                    this.geometryManager,
+                    this.projectionManager,
+                    this.shaderManager
+                );
+                
+                // Register all geometries
+                this.geometryManager.registerGeometry('hypercube', new HypercubeGeometry());
+                this.geometryManager.registerGeometry('hypersphere', new HypersphereGeometry());
+                this.geometryManager.registerGeometry('hypertetrahedron', new HypertetrahedronGeometry());
+                this.geometryManager.registerGeometry('torus', new TorusGeometry());
+                this.geometryManager.registerGeometry('kleinbottle', new KleinBottleGeometry());
+                this.geometryManager.registerGeometry('fractal', new FractalGeometry());
+                this.geometryManager.registerGeometry('wave', new WaveGeometry());
+                this.geometryManager.registerGeometry('crystal', new CrystalGeometry());
+                
+                // Register all projections
+                this.projectionManager.registerProjection('perspective', new PerspectiveProjection());
+                this.projectionManager.registerProjection('orthographic', new OrthographicProjection());
+                this.projectionManager.registerProjection('stereographic', new StereographicProjection());
+                
+                // Initialize interaction engine
+                this.interactionEngine = new VIB34DInteractionEngine();
+                
+                // Initialize chromatic engine
+                this.chromaticEngine = new VIB34DChromaticEngine();
+                
+                // Current parameters
+                this.currentParameters = {
+                    geometryType: 'hypercube',
+                    projectionMethod: 'perspective',
+                    dimension: 4.0,
+                    morphFactor: 0.7,
+                    rotationSpeed: 0.5,
+                    gridDensity: 8.0,
+                    lineThickness: 0.03,
+                    universeModifier: 1.0,
+                    patternIntensity: 1.3,
+                    glitchIntensity: 0.02,
+                    colorShift: 0.0,
+                    audioBass: 0.0,
+                    audioMid: 0.0,
+                    audioHigh: 0.0
+                };
+            }
+            
+            setupControls() {
+                // Geometry dropdown
+                const geometrySelect = document.getElementById('geometry-select');
+                geometrySelect.addEventListener('change', (e) => {
+                    this.updateParameter('geometryType', e.target.value);
+                    this.updateActiveControlGroup(e.target);
+                });
+                
+                // Projection dropdown
+                const projectionSelect = document.getElementById('projection-select');
+                projectionSelect.addEventListener('change', (e) => {
+                    this.updateParameter('projectionMethod', e.target.value);
+                    this.updateActiveControlGroup(e.target);
+                });
+                
+                // Setup all sliders
+                const sliderConfigs = [
+                    { id: 'dimension', min: 3.0, max: 5.0, decimals: 2 },
+                    { id: 'morphFactor', min: 0.0, max: 1.5, decimals: 2 },
+                    { id: 'rotationSpeed', min: 0.0, max: 3.0, decimals: 2 },
+                    { id: 'gridDensity', min: 1.0, max: 25.0, decimals: 1 },
+                    { id: 'lineThickness', min: 0.002, max: 0.1, decimals: 3 },
+                    { id: 'universeModifier', min: 0.3, max: 2.5, decimals: 2 },
+                    { id: 'patternIntensity', min: 0.0, max: 3.0, decimals: 2 },
+                    { id: 'glitchIntensity', min: 0.0, max: 0.15, decimals: 2 },
+                    { id: 'colorShift', min: -1.0, max: 1.0, decimals: 2 }
+                ];
+                
+                sliderConfigs.forEach(config => {
+                    const slider = document.getElementById(`${config.id}-slider`);
+                    const value = document.getElementById(`${config.id}-value`);
+                    const fill = document.getElementById(`${config.id}-fill`);
+                    
+                    slider.addEventListener('input', (e) => {
+                        const val = parseFloat(e.target.value);
+                        value.textContent = val.toFixed(config.decimals);
+                        
+                        // Update fill width
+                        const percent = (val - config.min) / (config.max - config.min);
+                        fill.style.width = `${percent * 100}%`;
+                        
+                        // Update parameter
+                        this.updateParameter(config.id, val);
+                        
+                        // Pulse effect
+                        this.updateActiveControlGroup(e.target);
+                    });
+                    
+                    // Initialize fill
+                    const initialVal = parseFloat(slider.value);
+                    const percent = (initialVal - config.min) / (config.max - config.min);
+                    fill.style.width = `${percent * 100}%`;
+                });
+                
+                // Export/Import buttons
+                document.getElementById('export-config').addEventListener('click', () => {
+                    this.exportConfiguration();
+                });
+                
+                document.getElementById('import-config').addEventListener('click', () => {
+                    this.importConfiguration();
+                });
+            }
+            
+            setupPresets() {
+                const presets = {
+                    hypercube_default: {
+                        geometryType: 'hypercube',
+                        dimension: 4.0,
+                        morphFactor: 0.7,
+                        gridDensity: 8.0,
+                        lineThickness: 0.03,
+                        rotationSpeed: 0.5,
+                        patternIntensity: 1.3,
+                        universeModifier: 1.0,
+                        glitchIntensity: 0.02,
+                        colorShift: 0.0
+                    },
+                    hypersphere_flow: {
+                        geometryType: 'hypersphere',
+                        dimension: 3.8,
+                        morphFactor: 0.9,
+                        gridDensity: 12.0,
+                        lineThickness: 0.02,
+                        rotationSpeed: 0.3,
+                        patternIntensity: 1.5,
+                        universeModifier: 1.2,
+                        glitchIntensity: 0.01,
+                        colorShift: 0.2
+                    },
+                    tetrahedron_technical: {
+                        geometryType: 'hypertetrahedron',
+                        dimension: 4.2,
+                        morphFactor: 0.4,
+                        gridDensity: 6.0,
+                        lineThickness: 0.035,
+                        rotationSpeed: 0.8,
+                        patternIntensity: 1.0,
+                        universeModifier: 0.8,
+                        glitchIntensity: 0.05,
+                        colorShift: -0.3
+                    },
+                    quantum_wave: {
+                        geometryType: 'wave',
+                        dimension: 4.5,
+                        morphFactor: 1.2,
+                        gridDensity: 20.0,
+                        lineThickness: 0.015,
+                        rotationSpeed: 1.5,
+                        patternIntensity: 2.0,
+                        universeModifier: 1.5,
+                        glitchIntensity: 0.08,
+                        colorShift: 0.5
+                    },
+                    crystal_lattice: {
+                        geometryType: 'crystal',
+                        dimension: 4.0,
+                        morphFactor: 0.3,
+                        gridDensity: 14.0,
+                        lineThickness: 0.025,
+                        rotationSpeed: 0.2,
+                        patternIntensity: 1.8,
+                        universeModifier: 1.0,
+                        glitchIntensity: 0.0,
+                        colorShift: 0.0
+                    },
+                    fractal_recursive: {
+                        geometryType: 'fractal',
+                        dimension: 4.3,
+                        morphFactor: 1.0,
+                        gridDensity: 6.0,
+                        lineThickness: 0.04,
+                        rotationSpeed: 1.0,
+                        patternIntensity: 2.5,
+                        universeModifier: 2.0,
+                        glitchIntensity: 0.1,
+                        colorShift: 0.8
+                    }
+                };
+                
+                // Preset buttons
+                document.querySelectorAll('.preset-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const presetName = e.target.dataset.preset;
+                        const preset = presets[presetName];
+                        if (preset) {
+                            this.applyPreset(preset);
+                            
+                            // Update active state
+                            document.querySelectorAll('.preset-button').forEach(b => {
+                                b.classList.remove('active');
+                            });
+                            e.target.classList.add('active');
+                        }
+                    });
+                });
+            }
+            
+            updateParameter(name, value) {
+                this.currentParameters[name] = value;
+                
+                // Update hypercube core
+                this.hypercubeCore.updateParameters(this.currentParameters);
+                
+                // If line thickness changed, update derived parameters
+                if (name === 'lineThickness') {
+                    this.currentParameters.shellWidth = value * 0.8;
+                    this.currentParameters.tetraThickness = value * 1.1;
+                }
+                
+                // Log parameter change
+                console.log(`📊 Parameter updated: ${name} = ${value}`);
+            }
+            
+            updateActiveControlGroup(element) {
+                const controlGroup = element.closest('.control-group');
+                if (controlGroup) {
+                    controlGroup.classList.add('active');
+                    setTimeout(() => {
+                        controlGroup.classList.remove('active');
+                    }, 500);
+                }
+            }
+            
+            applyPreset(preset) {
+                Object.entries(preset).forEach(([key, value]) => {
+                    // Update internal state
+                    this.currentParameters[key] = value;
+                    
+                    // Update UI
+                    if (key === 'geometryType') {
+                        document.getElementById('geometry-select').value = value;
+                    } else if (key === 'projectionMethod') {
+                        document.getElementById('projection-select').value = value;
+                    } else {
+                        const slider = document.getElementById(`${key}-slider`);
+                        if (slider) {
+                            slider.value = value;
+                            slider.dispatchEvent(new Event('input'));
+                        }
+                    }
+                });
+                
+                // Update core
+                this.hypercubeCore.updateParameters(this.currentParameters);
+            }
+            
+            exportConfiguration() {
+                const config = {
+                    name: 'VIB34D Custom Configuration',
+                    timestamp: new Date().toISOString(),
+                    parameters: this.currentParameters
+                };
+                
+                const json = JSON.stringify(config, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `vib34d-config-${Date.now()}.json`;
+                a.click();
+                
+                URL.revokeObjectURL(url);
+                console.log('📁 Configuration exported');
+            }
+            
+            importConfiguration() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                
+                input.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const config = JSON.parse(e.target.result);
+                                if (config.parameters) {
+                                    this.applyPreset(config.parameters);
+                                    console.log('📂 Configuration imported:', config.name);
+                                }
+                            } catch (error) {
+                                console.error('❌ Invalid configuration file:', error);
+                            }
+                        };
+                        reader.readAsText(file);
+                    }
+                });
+                
+                input.click();
+            }
+            
+            initializeWebGL() {
+                const gl = this.gl;
+                if (!gl) {
+                    console.error('WebGL not supported');
+                    return;
+                }
+                
+                // Set canvas size
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                // Basic WebGL setup
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.enable(gl.BLEND);
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                
+                // Create fullscreen quad
+                const vertices = new Float32Array([
+                    -1.0, -1.0,
+                     1.0, -1.0,
+                    -1.0,  1.0,
+                     1.0,  1.0,
+                ]);
+                
+                this.vertexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+            }
+            
+            resizeCanvas() {
+                this.canvas.width = this.canvas.offsetWidth;
+                this.canvas.height = this.canvas.offsetHeight;
+                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+            }
+            
+            startRenderLoop() {
+                let lastTime = performance.now();
+                let frameCount = 0;
+                let fpsTime = 0;
+                
+                const render = () => {
+                    const currentTime = performance.now();
+                    const deltaTime = currentTime - lastTime;
+                    lastTime = currentTime;
+                    
+                    // Update FPS
+                    frameCount++;
+                    fpsTime += deltaTime;
+                    if (fpsTime >= 1000) {
+                        document.getElementById('fps-display').textContent = frameCount;
+                        frameCount = 0;
+                        fpsTime = 0;
+                    }
+                    
+                    // Update interaction parameters
+                    const interactionData = this.interactionEngine.interactionData;
+                    this.currentParameters.audioBass = interactionData.scroll.smoothed;
+                    this.currentParameters.audioMid = interactionData.click.smoothed;
+                    this.currentParameters.audioHigh = interactionData.mouse.smoothed;
+                    
+                    // Update status display
+                    document.getElementById('interaction-display').textContent = 
+                        interactionData.pattern.type.toUpperCase();
+                    document.getElementById('energy-display').textContent = 
+                        interactionData.energy.toFixed(2);
+                    
+                    // Update chromatic system
+                    this.chromaticEngine.updateChromatic(
+                        this.currentParameters.geometryType,
+                        this.currentParameters
+                    );
+                    
+                    // Render
+                    this.render(currentTime * 0.001);
+                    
+                    requestAnimationFrame(render);
+                };
+                
+                requestAnimationFrame(render);
+            }
+            
+            render(time) {
+                const gl = this.gl;
+                
+                // Clear
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                
+                // Update time uniform
+                this.shaderManager.setUniform('u_time', time);
+                
+                // Update resolution
+                this.shaderManager.setUniform('u_resolution', [this.canvas.width, this.canvas.height]);
+                
+                // Get current shader program
+                const program = this.shaderManager.getCurrentProgram();
+                if (!program) return;
+                
+                gl.useProgram(program);
+                
+                // Bind vertex buffer
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+                const positionLocation = gl.getAttribLocation(program, 'a_position');
+                gl.enableVertexAttribArray(positionLocation);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                
+                // Draw
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            }
+        }
+        
+        // Initialize dashboard when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            window.vib34dDashboard = new VIB34DEditorDashboard();
+            console.log('🎛️ VIB34D Editor Dashboard ready');
+        });
+    </script>
+</body>
+</html>
