@@ -14,6 +14,24 @@
 // 🎮 VIB34D INTERACTION ENGINE - ENHANCED FOR PARAMETER SYSTEM
 // ============================================================================
 
+// Simple base class if VIB34DInteractionCoordinator not available
+class VIB34DInteractionCoordinator {
+    constructor(visualizerInstances = []) {
+        this.visualizers = visualizerInstances;
+        this.interactionState = {
+            hovering: false,
+            clicking: false,
+            scrolling: false,
+            idle: true
+        };
+    }
+    
+    updateAllVisualizers(parameters) {
+        // Base implementation - can be enhanced
+        console.log('📊 Updating visualizers with interaction parameters');
+    }
+}
+
 class VIB34DInteractionEngine extends VIB34DInteractionCoordinator {
     constructor(hypercubeCore, visualizerInstances = []) {
         super(visualizerInstances);

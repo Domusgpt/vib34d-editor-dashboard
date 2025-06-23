@@ -462,49 +462,6 @@ class TorusGeometry extends window.VIB34D_Phase1.BaseGeometry {
                 return pow(max(0.0, finalLattice), max(0.1, u_universeModifier));
             }
         `;
-                float torus3D = length(q) - minorRadius;
-                
-                // Create flow patterns along torus
-                float angle = atan(p.z, p.x);
-                float flow = sin(angle * density + u_time * u_rotationSpeed * 2.0) 
-                           * cos(p.y * density * 2.0 + u_time * u_rotationSpeed * 1.5);
-                
-                float lattice3D = 1.0 - smoothstep(0.0, dynamicThickness, abs(torus3D + flow * 0.1));
-                
-                // 4D extension
-                float finalLattice = lattice3D;
-                float dim_factor = smoothstep(3.0, 4.5, u_dimension);
-                
-                if (dim_factor > 0.01) {
-                    // 4D torus coordinate
-                    float w_coord = sin(angle * 2.0 + u_time * 0.3) 
-                                  * cos(length(q) * 3.0 - u_time * 0.4)
-                                  * dim_factor * (0.6 + u_morphFactor * 0.4 + u_audioHigh * 0.5);
-                    
-                    vec4 p4d = vec4(p, w_coord);
-                    
-                    // 4D rotation for torus
-                    float baseSpeed = u_rotationSpeed * 0.9;
-                    p4d = rotXW(u_time * 0.4 * baseSpeed) * rotYZ(u_time * 0.3 * baseSpeed) * p4d;
-                    
-                    vec3 projectedP = project4Dto3D(p4d);
-                    
-                    // 4D torus calculation
-                    vec2 q4d = vec2(length(projectedP.xz) - majorRadius, projectedP.y);
-                    float torus4D = length(q4d) - minorRadius;
-                    
-                    float angle4D = atan(projectedP.z, projectedP.x);
-                    float flow4D = sin(angle4D * density + u_time * u_rotationSpeed * 2.0) 
-                                 * cos(projectedP.y * density * 2.0 + u_time * u_rotationSpeed * 1.5);
-                    
-                    float lattice4D_proj = 1.0 - smoothstep(0.0, dynamicThickness, abs(torus4D + flow4D * 0.1));
-                    
-                    finalLattice = mix(lattice3D, lattice4D_proj, smoothstep(0.0, 1.0, u_morphFactor));
-                }
-                
-                return pow(max(0.0, finalLattice), max(0.1, u_universeModifier));
-            }
-        `;
     }
 }
 

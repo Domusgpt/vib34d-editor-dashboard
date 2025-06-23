@@ -16,12 +16,12 @@
  */
 
 // ============================================================================
-// 🎛️ ENHANCED SHADER MANAGER CLASS
+// 🎛️ ENHANCED SHADER MANAGER CLASS (from Phase 1)
 // ============================================================================
 
-class ShaderManager {
+class EnhancedShaderManager extends window.VIB34D_Phase1.ShaderManager {
     constructor(gl, options = {}) {
-        this.gl = gl;
+        super(gl); // Call base ShaderManager constructor
         this.options = {
             enableDebug: false,
             enableValidation: true,
@@ -874,7 +874,7 @@ class UniformSystemTester {
 
 // Export enhanced shader uniform system
 window.VIB34D_Phase4 = {
-    ShaderManager,
+    ShaderManager: EnhancedShaderManager,
     UniformSystemTester
 };
 

@@ -13,36 +13,16 @@
  */
 
 // ============================================================================
-// 📐 BASE PROJECTION ABSTRACT CLASS (Enhanced)
+// 📐 ENHANCE BASE PROJECTION CLASS (from Phase 1)
 // ============================================================================
 
-class BaseProjection {
-    constructor(name = 'BaseProjection') {
-        if (this.constructor === BaseProjection) {
-            throw new Error('BaseProjection is abstract and cannot be instantiated directly');
-        }
-        
-        this.name = name;
-        this.parameters = {
-            viewDistance: 2.5,
-            morphFactor: 0.7,
-            audioMid: 0.0,
-            audioHigh: 0.0
-        };
-    }
+// Enhanced parameter validation for BaseProjection (Phase 1 enhancement)
+if (window.VIB34D_Phase1 && window.VIB34D_Phase1.BaseProjection) {
+    // Enhance the existing BaseProjection.prototype with validation
+    const BaseProjectionProto = window.VIB34D_Phase1.BaseProjection.prototype;
     
-    /**
-     * Abstract method: Must be implemented by subclasses
-     * Returns the GLSL shader code for this projection's project4Dto3D() function
-     */
-    getShaderCode() {
-        throw new Error(`getShaderCode() must be implemented by ${this.constructor.name}`);
-    }
-    
-    /**
-     * Update projection parameters with validation
-     */
-    updateParameters(newParams) {
+    // Enhanced updateParameters with validation
+    BaseProjectionProto.updateParametersWithValidation = function(newParams) {
         const ranges = this.getParameterRanges();
         const validated = {};
         
@@ -57,33 +37,31 @@ class BaseProjection {
         
         Object.assign(this.parameters, validated);
         return validated;
-    }
+    };
     
-    /**
-     * Get parameter ranges for projections
-     */
-    getParameterRanges() {
+    // Enhanced getParameterRanges
+    BaseProjectionProto.getParameterRanges = function() {
         return {
             viewDistance: { min: 0.1, max: 10.0, default: 2.5 },
             morphFactor: { min: 0.0, max: 1.5, default: 0.7 },
             audioMid: { min: 0.0, max: 1.0, default: 0.0 },
             audioHigh: { min: 0.0, max: 1.0, default: 0.0 }
         };
-    }
+    };
     
-    /**
-     * Get current parameter values
-     */
-    getParameters() {
+    // Enhanced getParameters
+    BaseProjectionProto.getParameters = function() {
         return { ...this.parameters };
-    }
+    };
+    
+    console.log('✅ Enhanced BaseProjection with Phase 3 validation features');
 }
 
 // ============================================================================
 // 📐 PERSPECTIVE PROJECTION CLASS
 // ============================================================================
 
-class PerspectiveProjection extends BaseProjection {
+class PerspectiveProjection extends window.VIB34D_Phase1.BaseProjection {
     constructor(viewDistance = 2.5) {
         super('perspective');
         this.parameters.viewDistance = Math.max(0.1, viewDistance);
@@ -140,7 +118,7 @@ class PerspectiveProjection extends BaseProjection {
 // 📐 ORTHOGRAPHIC PROJECTION CLASS  
 // ============================================================================
 
-class OrthographicProjection extends BaseProjection {
+class OrthographicProjection extends window.VIB34D_Phase1.BaseProjection {
     constructor() {
         super('orthographic');
         this.parameters.basePerspectiveDistance = 2.5;
@@ -205,7 +183,7 @@ class OrthographicProjection extends BaseProjection {
 // 📐 STEREOGRAPHIC PROJECTION CLASS
 // ============================================================================
 
-class StereographicProjection extends BaseProjection {
+class StereographicProjection extends window.VIB34D_Phase1.BaseProjection {
     constructor(projectionPoleW = -1.5) {
         super('stereographic');
         this.parameters.projectionPoleW = Math.abs(projectionPoleW) < 0.01 ? -1.0 : projectionPoleW;
@@ -289,18 +267,20 @@ class StereographicProjection extends BaseProjection {
 }
 
 // ============================================================================
-// 📐 ENHANCED PROJECTION MANAGER CLASS
+// 📐 ENHANCED PROJECTION MANAGER CLASS (from Phase 1)
 // ============================================================================
 
-class ProjectionManager {
+class EnhancedProjectionManager extends window.VIB34D_Phase1.ProjectionManager {
     constructor(options = {}) {
+        super(); // Call base ProjectionManager constructor
+        
         this.options = {
             defaultProjection: 'perspective',
             enableDebug: false,
             ...options
         };
         
-        this.projections = new Map();
+        // Enhanced features for Phase 3
         this.currentProjection = null;
         this.transitionState = {
             isTransitioning: false,
@@ -332,7 +312,7 @@ class ProjectionManager {
     registerProjection(name, projectionInstance) {
         const lowerCaseName = name.toLowerCase();
         
-        if (!(projectionInstance instanceof BaseProjection)) {
+        if (!(projectionInstance instanceof window.VIB34D_Phase1.BaseProjection)) {
             console.error(`Invalid projection object for '${lowerCaseName}'. Must extend BaseProjection.`);
             return false;
         }
@@ -628,11 +608,12 @@ class ProjectionTester {
 
 // Export all projection classes for use in production system
 window.VIB34D_Phase3 = {
-    BaseProjection,
+    // Use Phase 1 BaseProjection (enhanced with validation)
+    BaseProjection: window.VIB34D_Phase1.BaseProjection,
     PerspectiveProjection,
     OrthographicProjection,
     StereographicProjection,
-    ProjectionManager,
+    ProjectionManager: EnhancedProjectionManager,
     ProjectionTester
 };
 
