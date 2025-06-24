@@ -3262,6 +3262,19 @@
                         }
                     });
                     
+                    // 🔧 CRITICAL FIX: Update visualizer geometry states for new face
+                    if (window.morphingBlogSystem && window.morphingBlogSystem.visualizers) {
+                        window.morphingBlogSystem.visualizers.forEach((viz, index) => {
+                            if (viz && typeof viz.targetState !== 'undefined') {
+                                // Map face index to geometry state (0-7 face → 0-7 geometry)
+                                const geometryState = Math.min(faceIndex, viz.states.length - 1);
+                                viz.targetState = geometryState;
+                                viz.transitionProgress = 0.0; // Start geometry transition
+                                console.log(`🎨 Visualizer ${index} transitioning to geometry ${geometryState} (${viz.states[geometryState]?.geometryName || 'unknown'})`);
+                            }
+                        });
+                    }
+                    
                     this.isTransitioning = false;
                     console.log(`🎲 Tesseract folded to face ${faceIndex}`);
                 }, 800);
