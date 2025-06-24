@@ -3394,6 +3394,37 @@
                 const dualNavSystem = new DualNavigationSystem(homeMaster, reactivityBridge);
                 window.dualNavigationSystem = dualNavSystem;
                 
+                // 🌈 CRITICAL ADDITION: Initialize Moiré RGB System for glitchy borders
+                console.log('🌈 Initializing VIB34D Moiré RGB System...');
+                
+                // Load and initialize the Moiré RGB Engine
+                const moireScript = document.createElement('script');
+                moireScript.src = './VIB34D_MOIRE_RGB_SYSTEM.js';
+                moireScript.onload = () => {
+                    if (window.VIB34DMoireRGBEngine) {
+                        const moireEngine = new window.VIB34DMoireRGBEngine();
+                        moireEngine.initialize();
+                        window.vib3MoireEngine = moireEngine;
+                        console.log('🌈 Moiré RGB Engine initialized - glitchy borders active');
+                    }
+                };
+                document.head.appendChild(moireScript);
+                
+                // 💎 CRITICAL ADDITION: Initialize Emerging Button Crystallization System
+                console.log('💎 Initializing VIB34D Emerging Button System...');
+                
+                const buttonScript = document.createElement('script');
+                buttonScript.src = './VIB34D_EMERGING_BUTTON_SYSTEM.js';
+                buttonScript.onload = () => {
+                    if (window.VIB34DEmergingButtonEngine) {
+                        const buttonEngine = new window.VIB34DEmergingButtonEngine();
+                        buttonEngine.initialize();
+                        window.vib3ButtonEngine = buttonEngine;
+                        console.log('💎 Emerging Button Engine initialized - crystallization active');
+                    }
+                };
+                document.head.appendChild(buttonScript);
+                
                 console.log('✅ All systems initialized with proper architecture');
             } catch (error) {
                 console.error('❌ Error initializing core systems:', error);
@@ -3424,6 +3455,7 @@
     <!-- ENHANCED SYSTEMS -->
     <script src="VIB34D_MOIRE_RGB_SYSTEM.js"></script>
     <script src="VIB34D_ENHANCED_MOIRE_INTEGRATION.js"></script>
+    <script src="VIB34D_EMERGING_BUTTON_SYSTEM.js"></script>
     
     <!-- INTEGRATION INJECT (BACKUP) -->
     <script src="VIB34D_BLOG_INTEGRATION_INJECT.js?v=2"></script>
