@@ -54,41 +54,44 @@
             transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
         
-        /* 8-CELL TESSERACT FACE POSITIONS */
-        .hypercube-face.face-0 { /* FRONT */
-            transform: translateZ(0px) rotateY(0deg);
+        /* SINGLE DYNAMIC FACE WITH 8 GEOMETRY STATES */
+        .hypercube-face.active-face {
+            transform: translateZ(0px);
+            opacity: 1;
+            visibility: visible;
         }
         
-        .hypercube-face.face-1 { /* RIGHT */
-            transform: rotateY(90deg) translateZ(0px);
-            transform-origin: center right;
+        /* GEOMETRY-BASED DYNAMIC STATES */
+        .active-face[data-geometry="hypercube"] { /* HOME STATE */
+            /* Keep existing layout with hypercube visualizers */
         }
         
-        .hypercube-face.face-2 { /* BACK */
-            transform: rotateY(180deg) translateZ(0px);
+        .active-face[data-geometry="tetrahedron"] { /* TECH STATE */
+            /* Dynamic repositioning for tech content */
         }
         
-        .hypercube-face.face-3 { /* LEFT */
-            transform: rotateY(-90deg) translateZ(0px);
-            transform-origin: center left;
+        .active-face[data-geometry="wave"] { /* RESEARCH STATE */
+            /* Dynamic repositioning for research content */
         }
         
-        .hypercube-face.face-4 { /* TOP */
-            transform: rotateX(-90deg) translateZ(0px);
-            transform-origin: center top;
+        .active-face[data-geometry="sphere"] { /* MEDIA STATE */
+            /* Dynamic repositioning for media content */
         }
         
-        .hypercube-face.face-5 { /* BOTTOM */
-            transform: rotateX(90deg) translateZ(0px);
-            transform-origin: center bottom;
+        .active-face[data-geometry="fractal"] { /* INNOVATION STATE */
+            /* Dynamic repositioning for innovation content */
         }
         
-        .hypercube-face.face-6 { /* INNER FRONT */
-            transform: translateZ(-200px) rotateY(0deg);
+        .active-face[data-geometry="crystal"] { /* CONTEXT STATE */
+            /* Dynamic repositioning for context content */
         }
         
-        .hypercube-face.face-7 { /* INNER BACK */
-            transform: translateZ(-200px) rotateY(180deg);
+        .active-face[data-geometry="klein"] { /* KLEIN STATE */
+            /* Dynamic repositioning for klein content */
+        }
+        
+        .active-face[data-geometry="torus"] { /* TORUS STATE */
+            /* Dynamic repositioning for torus content */
         }
         
         /* TESSERACT FOLDING STATES */
@@ -1037,11 +1040,9 @@
     <!-- REALITY TEAR OVERLAY -->
     <div class="reality-tear" id="realityTear"></div>
 
-    <!-- TESSERACT 8-CELL HYPERCUBE NAVIGATION -->
+    <!-- SINGLE DYNAMIC LAYOUT CONTAINER (Following Reference Pattern) -->
     <div class="tesseract-container" id="tesseractContainer">
-        <!-- FACE 0: HOME (FRONT) -->
-        <div class="hypercube-face face-0" id="face-0">
-            <div class="blog-container layout-home" id="blogContainer">
+        <div class="holographic-container layout-home" id="holoContainer">
         
         <!-- VISUALIZER BACKGROUND BOARD -->
         <div class="visualizer-board">
@@ -1194,26 +1195,70 @@
             </div>
         </div>
         
-        <!-- FACE 6: KLEIN BOTTLE (INNER FRONT) -->
-        <div class="hypercube-face face-6" id="face-6">
-            <div class="blog-container layout-klein">
-                <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column;">
-                    <div style="font-size: 4rem; color: #ff6600; text-shadow: 0 0 20px #ff6600;">KLEIN</div>
-                    <div style="font-size: 1.5rem; color: #ffffff; margin-top: 20px;">Non-Orientable Topology</div>
-                </div>
+        
+        <!-- HIDDEN CONTENT TEMPLATES FOR 8 GEOMETRY STATES -->
+        <div id="content-templates" style="display: none;">
+            
+            <!-- Template 0: HYPERCUBE (HOME) -->
+            <div id="template-hypercube" data-geometry="hypercube">
+                <div class="card-title">VIB3CODE</div>
+                <div class="card-subtitle">Emergent Interface Architecture</div>
+                <div class="article-content">The Foundational Trinity</div>
             </div>
+            
+            <!-- Template 1: TETRAHEDRON (TECH) -->
+            <div id="template-tetrahedron" data-geometry="tetrahedron">
+                <div class="card-title">TECH STACK</div>
+                <div class="card-subtitle">Geometric Precision Systems</div>
+                <div class="article-content">Advanced Technical Documentation</div>
+            </div>
+            
+            <!-- Template 2: WAVE (RESEARCH) -->
+            <div id="template-wave" data-geometry="wave">
+                <div class="card-title">RESEARCH</div>
+                <div class="card-subtitle">Probability Wave Functions</div>
+                <div class="article-content">Experimental Development</div>
+            </div>
+            
+            <!-- Template 3: SPHERE (MEDIA) -->
+            <div id="template-sphere" data-geometry="sphere">
+                <div class="card-title">MEDIA</div>
+                <div class="card-subtitle">Infinite Potential</div>
+                <div class="article-content">Content & Communication</div>
+            </div>
+            
+            <!-- Template 4: FRACTAL (INNOVATION) -->
+            <div id="template-fractal" data-geometry="fractal">
+                <div class="card-title">INNOVATION</div>
+                <div class="card-subtitle">Recursive Growth Patterns</div>
+                <div class="article-content">Mandelbulb Development</div>
+            </div>
+            
+            <!-- Template 5: CRYSTAL (CONTEXT) -->
+            <div id="template-crystal" data-geometry="crystal">
+                <div class="card-title">CONTEXT</div>
+                <div class="card-subtitle">Ordered Complexity</div>
+                <div class="article-content">Settings & Configuration</div>
+            </div>
+            
+            <!-- Template 6: KLEIN (BOUNDARY TRANSCENDENCE) -->
+            <div id="template-klein" data-geometry="klein">
+                <div class="card-title">KLEIN</div>
+                <div class="card-subtitle">Non-Orientable Topology</div>
+                <div class="article-content">Boundary Transcendence</div>
+            </div>
+            
+            <!-- Template 7: TORUS (FLOW) -->
+            <div id="template-torus" data-geometry="torus">
+                <div class="card-title">TORUS</div>
+                <div class="card-subtitle">Flow & Circulation</div>
+                <div class="article-content">Continuous Creation</div>
+            </div>
+            
         </div>
         
-        <!-- FACE 7: TORUS (INNER BACK) -->
-        <div class="hypercube-face face-7" id="face-7">
-            <div class="blog-container layout-torus">
-                <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column;">
-                    <div style="font-size: 4rem; color: #00ff88; text-shadow: 0 0 20px #00ff88;">TORUS</div>
-                    <div style="font-size: 1.5rem; color: #ffffff; margin-top: 20px;">Flow & Circulation</div>
-                </div>
-            </div>
-        </div>
-        
+        </div> <!-- Close blogContainer -->
+        </div> <!-- Close dynamic-face -->
     </div> <!-- Close tesseract-container -->
     
     <!-- 4D CUBE NAVIGATION BEZELS -->
@@ -2910,7 +2955,10 @@
                 this.homeMaster = homeMaster;
                 this.reactivityBridge = reactivityBridge;
                 this.tesseractContainer = document.getElementById('tesseractContainer');
-                this.faces = ['face-0', 'face-1', 'face-2', 'face-3', 'face-4', 'face-5', 'face-6', 'face-7'];
+                // Single dynamic face with 8 geometry states
+                this.dynamicFace = document.getElementById('dynamic-face');
+                this.geometryStates = ['hypercube', 'tetrahedron', 'wave', 'sphere', 'fractal', 'crystal', 'klein', 'torus'];
+                this.currentGeometry = 0;
                 this.currentFace = 0;
                 this.isDragging = false;
                 this.startX = 0;
@@ -2950,6 +2998,82 @@
                 document.addEventListener('keydown', (e) => this.handleKeyboard(e));
                 
                 console.log('✅ Dual Navigation System ready - Tesseract folding + Scroll mechanics');
+            }
+            
+            // 🆕 CONTENT SWITCHING SYSTEM - Maintains VIB34D Architecture
+            updateDynamicFaceContent(faceIndex) {
+                const geometryName = this.geometryStates[faceIndex];
+                const dynamicFace = this.dynamicFace;
+                
+                if (!dynamicFace) {
+                    console.warn('Dynamic face not found');
+                    return;
+                }
+                
+                console.log(`🔄 DYNAMIC CONTENT: Switching to ${geometryName} (face ${faceIndex})`);
+                
+                // 1. Update face data attributes for CSS targeting
+                dynamicFace.setAttribute('data-geometry', geometryName);
+                dynamicFace.setAttribute('data-face', faceIndex);
+                
+                // 2. Get content template for this geometry
+                const template = document.getElementById(`template-${geometryName}`);
+                if (template) {
+                    // 3. Update card content with geometry-specific content
+                    this.updateCardContent(template);
+                }
+                
+                // 4. Update CSS class for layout targeting
+                const blogContainer = document.getElementById('blogContainer');
+                if (blogContainer) {
+                    blogContainer.className = `blog-container layout-${geometryName}`;
+                }
+                
+                // 5. Trigger VIB34D geometry state change
+                this.triggerVIB34DGeometryChange(geometryName, faceIndex);
+            }
+            
+            updateCardContent(template) {
+                // Update all cards with content from template
+                const cards = document.querySelectorAll('.blog-card .card-content');
+                cards.forEach((cardContent, index) => {
+                    if (index === 0) { // Header card
+                        const titleEl = cardContent.querySelector('.card-title, .blog-title');
+                        const subtitleEl = cardContent.querySelector('.card-subtitle, .card-subtitle');
+                        
+                        if (titleEl) titleEl.textContent = template.querySelector('.card-title')?.textContent || 'VIB3CODE';
+                        if (subtitleEl) subtitleEl.textContent = template.querySelector('.card-subtitle')?.textContent || 'Emergent Interface';
+                    } else if (index === 1) { // Main content card
+                        const contentEl = cardContent.querySelector('.article-content');
+                        if (contentEl) contentEl.textContent = template.querySelector('.article-content')?.textContent || 'Advanced Systems';
+                    }
+                });
+            }
+            
+            triggerVIB34DGeometryChange(geometryName, faceIndex) {
+                // Maintain full VIB34D parameter system integration
+                console.log(`🎨 VIB34D GEOMETRY: ${geometryName} (face ${faceIndex})`);
+                
+                // Update VIB34D geometry parameters for all visualizers
+                if (window.morphingBlogSystem && window.morphingBlogSystem.visualizers) {
+                    window.morphingBlogSystem.visualizers.forEach((viz, index) => {
+                        if (viz && viz.setTheme) {
+                            viz.setTheme(geometryName);
+                            console.log(`🎨 Visualizer ${index} → ${geometryName}`);
+                        }
+                    });
+                }
+                
+                // Update VIB34D Real WebGL instances
+                if (window.vib34dRealIntegration && window.vib34dRealIntegration.instances) {
+                    Object.keys(window.vib34dRealIntegration.instances).forEach(canvasId => {
+                        const instance = window.vib34dRealIntegration.instances[canvasId];
+                        if (instance && instance.updateGeometry) {
+                            instance.updateGeometry(geometryName);
+                            console.log(`🔮 WebGL ${canvasId} → ${geometryName}`);
+                        }
+                    });
+                }
             }
             
             startDrag(e) {
@@ -3261,21 +3385,8 @@
                     this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down', 'tension-building');
                     document.documentElement.style.setProperty('--tension-intensity', '0');
                     
-                    // Update active face visibility - ACTIVE FACE PROMINENT
-                    this.faces.forEach((faceId, index) => {
-                        const face = document.getElementById(faceId);
-                        if (face) {
-                            if (index === faceIndex) {
-                                face.style.zIndex = '10';
-                                face.style.opacity = '1';
-                                face.style.transform = 'scale(1) translateZ(0px)';
-                            } else {
-                                face.style.zIndex = '1'; 
-                                face.style.opacity = '0.3';
-                                face.style.transform = 'scale(0.95) translateZ(-100px)';
-                            }
-                        }
-                    });
+                    // Update dynamic face content and geometry state
+                    this.updateDynamicFaceContent(faceIndex);
                     
                     // 🔧 CRITICAL FIX: Update ALL visualizer geometry states for new face
                     console.log(`🎨 FACE TRANSITION: Updating all visualizers for face ${faceIndex}`);
