@@ -2899,7 +2899,7 @@
                 this.homeMaster = homeMaster;
                 this.reactivityBridge = reactivityBridge;
                 this.tesseractContainer = document.getElementById('tesseractContainer');
-                this.faces = ['face-0', 'face-1', 'face-2', 'face-3', 'face-4', 'face-5'];
+                this.faces = ['face-0', 'face-1', 'face-2', 'face-3', 'face-4', 'face-5', 'face-6', 'face-7'];
                 this.currentFace = 0;
                 this.isDragging = false;
                 this.startX = 0;
@@ -3250,15 +3250,19 @@
                     this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down', 'tension-building');
                     document.documentElement.style.setProperty('--tension-intensity', '0');
                     
-                    // Update active face visibility - KEEP CONTENT VISIBLE
+                    // Update active face visibility - ACTIVE FACE PROMINENT
                     this.faces.forEach((faceId, index) => {
                         const face = document.getElementById(faceId);
-                        if (index === faceIndex) {
-                            face.style.zIndex = '10';
-                            face.style.opacity = '1';
-                        } else {
-                            face.style.zIndex = '1';
-                            face.style.opacity = '0.95'; // KEEP VISIBLE, not transparent
+                        if (face) {
+                            if (index === faceIndex) {
+                                face.style.zIndex = '10';
+                                face.style.opacity = '1';
+                                face.style.transform = 'scale(1) translateZ(0px)';
+                            } else {
+                                face.style.zIndex = '1'; 
+                                face.style.opacity = '0.3';
+                                face.style.transform = 'scale(0.95) translateZ(-100px)';
+                            }
                         }
                     });
                     
@@ -3487,6 +3491,6 @@
     <script src="VIB34D_EMERGING_BUTTON_SYSTEM.js"></script>
     
     <!-- INTEGRATION INJECT (BACKUP) -->
-    <script src="VIB34D_BLOG_INTEGRATION_INJECT.js?v=3"></script>
+    <script src="VIB34D_BLOG_INTEGRATION_INJECT.js?v=4"></script>
 </body>
 </html>
