@@ -422,7 +422,7 @@ class VIB34DRealWebGLIntegration {
         // Track scrolling - ONLY for visual effects, don't prevent default
         window.addEventListener('wheel', (e) => {
             // Only track if NOT scrolling on content cards
-            const target = e.target.closest('.blog-card, .content-section, .card-content');
+            const target = e.target && e.target.closest ? e.target.closest('.blog-card, .content-section, .card-content') : null;
             if (target) return; // Allow normal scroll on content
             
             const scrollIntensity = Math.min(Math.abs(e.deltaY) / 100, 1.0);
@@ -432,7 +432,7 @@ class VIB34DRealWebGLIntegration {
         
         // Track mouse movement - ONLY over bezel areas
         window.addEventListener('mousemove', (e) => {
-            const isOverBezel = e.target.closest('.navigation-bezel, .bezel-visualizer');
+            const isOverBezel = e.target && e.target.closest ? e.target.closest('.navigation-bezel, .bezel-visualizer') : null;
             if (isOverBezel) {
                 mouseEnergy = Math.min(1.0, Math.sqrt(e.movementX**2 + e.movementY**2) / 20);
                 this.updateInteraction(scrollEnergy, clickEnergy, mouseEnergy);
@@ -441,7 +441,7 @@ class VIB34DRealWebGLIntegration {
         
         // Track clicks - ONLY on bezel areas for navigation
         window.addEventListener('click', (e) => {
-            const bezelElement = e.target.closest('.navigation-bezel, .bezel-visualizer');
+            const bezelElement = e.target && e.target.closest ? e.target.closest('.navigation-bezel, .bezel-visualizer') : null;
             if (bezelElement) {
                 clickEnergy = 1.0;
                 this.updateInteraction(scrollEnergy, clickEnergy, mouseEnergy);

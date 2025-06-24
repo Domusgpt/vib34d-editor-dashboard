@@ -3250,7 +3250,7 @@
                     this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down', 'tension-building');
                     document.documentElement.style.setProperty('--tension-intensity', '0');
                     
-                    // Update active face visibility
+                    // Update active face visibility - KEEP CONTENT VISIBLE
                     this.faces.forEach((faceId, index) => {
                         const face = document.getElementById(faceId);
                         if (index === faceIndex) {
@@ -3258,19 +3258,48 @@
                             face.style.opacity = '1';
                         } else {
                             face.style.zIndex = '1';
-                            face.style.opacity = '0.1';
+                            face.style.opacity = '0.95'; // KEEP VISIBLE, not transparent
                         }
                     });
                     
-                    // 🔧 CRITICAL FIX: Update visualizer geometry states for new face
+                    // 🔧 CRITICAL FIX: Update ALL visualizer geometry states for new face
+                    console.log(`🎨 FACE TRANSITION: Updating all visualizers for face ${faceIndex}`);
+                    
+                    // Update main content visualizers
                     if (window.morphingBlogSystem && window.morphingBlogSystem.visualizers) {
                         window.morphingBlogSystem.visualizers.forEach((viz, index) => {
-                            if (viz && typeof viz.targetState !== 'undefined') {
-                                // Map face index to geometry state (0-7 face → 0-7 geometry)
-                                const geometryState = Math.min(faceIndex, viz.states.length - 1);
-                                viz.targetState = geometryState;
-                                viz.transitionProgress = 0.0; // Start geometry transition
-                                console.log(`🎨 Visualizer ${index} transitioning to geometry ${geometryState} (${viz.states[geometryState]?.geometryName || 'unknown'})`);
+                            if (viz && viz.setTheme) {
+                                // Map face to geometry
+                                const faceGeometries = {
+                                    0: 'hypercube',    // HOME
+                                    1: 'tetrahedron',  // TECH  
+                                    2: 'wave',         // RESEARCH
+                                    3: 'sphere',       // MEDIA
+                                    4: 'fractal',      // INNOVATION
+                                    5: 'crystal',      // CONTEXT
+                                    6: 'klein',        // TORUS
+                                    7: 'torus'         // KLEIN
+                                };
+                                
+                                const newGeometry = faceGeometries[faceIndex] || 'hypercube';
+                                viz.setTheme(newGeometry);
+                                console.log(`🎨 Visualizer ${index} (${viz.canvasId}) → ${newGeometry}`);
+                            }
+                        });
+                    }
+                    
+                    // Update VIB34D Real WebGL visualizers
+                    if (window.vib34dRealIntegration && window.vib34dRealIntegration.instances) {
+                        Object.keys(window.vib34dRealIntegration.instances).forEach(canvasId => {
+                            const instance = window.vib34dRealIntegration.instances[canvasId];
+                            if (instance && instance.updateGeometry) {
+                                const faceGeometries = {
+                                    0: 'hypercube', 1: 'tetrahedron', 2: 'wave', 3: 'sphere',
+                                    4: 'fractal', 5: 'crystal', 6: 'klein', 7: 'torus'
+                                };
+                                const newGeometry = faceGeometries[faceIndex] || 'hypercube';
+                                instance.updateGeometry(newGeometry);
+                                console.log(`🔮 WebGL ${canvasId} → ${newGeometry}`);
                             }
                         });
                     }
