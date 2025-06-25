@@ -163,6 +163,16 @@
             --content-flow-strength: 0.0;
             --text-proximity: 0.0;
         }
+
+        .scroll-wrapper { /* For page-level drag scrolling */
+            width: 100%;
+            height: 100%;
+            /* CSS variables will be dynamically named based on elementId, e.g., --pageContentScrollWrapper-scroll-x */
+            /* transform: translate(var(--pageContentScrollWrapper-scroll-x, 0px), var(--pageContentScrollWrapper-scroll-y, 0px)); */
+            /* Actual transform will be applied by JS setting these vars, or specific CSS for the ID */
+            will-change: transform;
+            position: relative; /* Ensure it's a positioning context if children are absolute */
+        }
         
         /* MAIN BLOG CONTAINER */
         .blog-container {
@@ -402,8 +412,10 @@
                 rgba(0, 255, 0, 0.06) 75%,
                 rgba(255, 0, 128, 0.08) 100%
             );
-            overflow-y: auto;
-            transition: all 0.3s ease;
+            /* overflow-y: auto; */ /* Changed for transform-based scrolling */
+            overflow: hidden; /* Crucial for transform-based scrolling */
+            transition: all 0.3s ease; /* Existing transition, may need review with transform scrolling */
+            will-change: transform; /* Performance hint for scrolling */
         }
         
         .card-content::before {
@@ -1016,6 +1028,36 @@
     <!-- CORE ARCHITECTURE SYSTEMS -->
     <script type="module" src="./core/VIB3HomeMaster.js"></script>
     <script type="module" src="./core/UnifiedReactivityBridge.js"></script>
+    <script src="./core/DragScrollHandler.js"></script> <!-- Include the new handler -->
+    <style>
+        .no-select-during-drag {
+            user-select: none !important;
+            -webkit-user-select: none !important; /* Safari */
+            -moz-user-select: none !important;    /* Firefox */
+            -ms-user-select: none !important;     /* IE10+/Edge */
+        }
+
+        /* General style for scroll wrappers, including the page scroll area */
+        .scroll-wrapper {
+            width: 100%;
+            height: 100%;
+            will-change: transform;
+            position: relative; /* Important if children are absolutely positioned within it */
+        }
+
+        /* Specific rule for the main page scroll area */
+        #page-content-scroll-area {
+            transform: translate(var(--page-content-scroll-area-scroll-x, 0px), var(--page-content-scroll-area-scroll-y, 0px));
+        }
+
+        /* .card-content already has overflow:hidden and will-change:transform.
+           The transform for card content will be applied by UnifiedReactivityBridge setting
+           element-specific CSS variables like --blog-card-1-content-scroll-y,
+           which will then be used by inline styles or more specific CSS rules if needed.
+           For now, assuming the bridge sets these and they are picked up by element.style.transform
+           or specific CSS rules added later if required for cards.
+        */
+    </style>
 </head>
 <body>
     <!-- STATE INDICATOR -->
@@ -1044,6 +1086,7 @@
     <div class="tesseract-container" id="tesseractContainer">
         <!-- VIB34D HYBRID: Single dynamic face with 8 geometry states -->
         <div class="hypercube-face active-face" id="dynamic-face" data-geometry="hypercube" data-face="0">
+            <div class="scroll-wrapper" id="page-content-scroll-area"> <!-- NEW WRAPPER for page scroll -->
         
         <!-- VISUALIZER BACKGROUND BOARD -->
         <div class="visualizer-board">
@@ -1258,7 +1301,7 @@
             
         </div>
         
-        </div> <!-- Close blogContainer -->
+            </div> <!-- Close scroll-wrapper -->
         </div> <!-- Close dynamic-face -->
     </div> <!-- Close tesseract-container -->
     
@@ -2222,7 +2265,7 @@
                 
                 this.setupInteractions();
                 this.setupStateControls();
-                this.setupScrolling();
+                // this.setupScrolling(); // Commented out to disable old scroll logic
                 this.startRenderLoop();
                 this.updateContent();
                 
@@ -2651,6 +2694,10 @@
             }
             
             setupScrolling() {
+                /*  Entire method commented out to disable old scroll logic.
+                    New Universal Click/Drag scrolling will be managed by DragScrollHandler
+                    and VIB3HomeMaster.
+
                 let scrollAccumulation = 0;
                 let scrollPosition = 0;
                 let scrollTimeout;
@@ -2748,6 +2795,7 @@
                     requestAnimationFrame(animateSnapBack);
                 };
             }
+            */ // End of commented out setupScrolling method
             
             triggerStateTransition(newState) {
                 if (newState === this.currentState || this.isTransitioning) return;
@@ -3337,7 +3385,7 @@
 
                 // Update local dynamic content using targetFaceIndexForVisuals
                 this.updateDynamicFaceContent(targetFaceIndexForVisuals);
-                
+
                 // Visual transition (CSS classes will handle animation based on data-face, etc.)
                 // We just need to ensure the correct classes are set for the target state.
                 // The `folding-*` classes are for pre-visualization of the fold.
@@ -3465,6 +3513,38 @@
                 const basicNavSystem = new DualNavigationSystem(null, null);
                 window.dualNavigationSystem = basicNavSystem;
             }
+
+            // Initialize DragScrollHandlers after core systems are ready
+            const homeMasterInstance = window.vib3HomeMaster;
+            if (homeMasterInstance && typeof DragScrollHandler === 'function') {
+                // 1. Page Scroll
+                const pageScrollArea = document.getElementById('page-content-scroll-area');
+                if (pageScrollArea) {
+                    new DragScrollHandler(pageScrollArea, homeMasterInstance, 'page-content-scroll-area', 'pageScroll');
+                    // The CSS for #page-content-scroll-area already applies the transform with these vars.
+                    console.log('🖱️ DragScrollHandler initialized for page-content-scroll-area (profile: pageScroll).');
+                } else {
+                    console.warn('#page-content-scroll-area not found for DragScrollHandler.');
+                }
+
+                // 2. Card Content Scroll
+                document.querySelectorAll('.blog-card').forEach(card => {
+                    const cardContent = card.querySelector('.card-content');
+                    const cardId = card.id; // e.g., "blog-card-1"
+                    if (cardContent && cardId) {
+                        const elementId = cardId + "-content"; // e.g., "blog-card-1-content"
+                        new DragScrollHandler(cardContent, homeMasterInstance, elementId, 'cardContentScroll');
+                        // Dynamically set the transform style for this specific card content element
+                        // to use its unique CSS variables that the bridge will update.
+                        cardContent.style.transform = `translate(var(--${elementId}-scroll-x, 0px), var(--${elementId}-scroll-y, 0px))`;
+                        console.log(`🖱️ DragScrollHandler initialized for ${elementId} (profile: cardContentScroll).`);
+                    }
+                });
+            } else {
+                if (!homeMasterInstance) console.error('VIB3HomeMaster instance (window.vib3HomeMaster) not found. DragScrollHandlers not initialized.');
+                if (typeof DragScrollHandler !== 'function') console.error('DragScrollHandler class not found. DragScrollHandlers not initialized.');
+            }
+
         });
         
     </script>

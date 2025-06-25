@@ -742,8 +742,59 @@ class UnifiedReactivityBridge {
             frameTime: this.frameTime,
             visualizerCount: this.visualizers.length,
             editorParameters: this.getWebGLParameters(),
-            isEditorConnected: !!this.homeMaster?.editorConfig
+            isEditorConnected: !!this.homeMaster?.editorConfig,
+            scrollableElementsState: this.homeMaster?.masterState?.scrollableElementsState || {}
         };
+    }
+
+    // Helper to ensure CSS property for a scrollable element exists if needed by other systems
+    // For now, primarily relies on setting directly.
+    _ensureScrollCssProperties(elementId) {
+        const xVar = `--${elementId}-scroll-x`;
+        const yVar = `--${elementId}-scroll-y`;
+        if (!this.cssProperties.hasOwnProperty(xVar)) {
+            // console.log(`Bridge: Registering new scroll CSS var: ${xVar}`);
+            // this.cssProperties[xVar] = '0px'; // Initialize if needed, but direct setProperty is primary
+        }
+        if (!this.cssProperties.hasOwnProperty(yVar)) {
+            // console.log(`Bridge: Registering new scroll CSS var: ${yVar}`);
+            // this.cssProperties[yVar] = '0px';
+        }
+    }
+
+    // Modified startUpdateLoop to include syncing scroll states
+    startUpdateLoop() {
+        const update = () => {
+            this.processEventQueue(); // Process interactions that might change HomeMaster state
+
+            // Update system coherence based on HomeMaster state
+            if (this.homeMaster) {
+                const systemState = this.homeMaster.getSystemState();
+                this.updateCSSProperty('--system-coherence', systemState.masterState.coherence.toFixed(3));
+
+                // Sync scrollable elements states
+                if (this.homeMaster.masterState.scrollableElementsState) {
+                    for (const elementId in this.homeMaster.masterState.scrollableElementsState) {
+                        const state = this.homeMaster.masterState.scrollableElementsState[elementId];
+                        if (state) {
+                            // this._ensureScrollCssProperties(elementId); // Optional: formal registration in this.cssProperties
+                            this.updateCSSProperty(`--${elementId}-scroll-x`, `${state.offsetX || 0}px`);
+                            this.updateCSSProperty(`--${elementId}-scroll-y`, `${state.offsetY || 0}px`);
+                        }
+                    }
+                }
+            }
+
+            // Potentially other periodic sync tasks from syncAllLayers could be moved here too
+            // For instance, syncing WebGL visualizers if their params change often without specific events.
+            // However, syncAllLayers is usually called on explicit state changes.
+            // For scrolling, which updates frequently via HomeMaster's loop, this direct sync is better.
+
+            requestAnimationFrame(update);
+        };
+
+        requestAnimationFrame(update);
+        console.log('🔄 UnifiedReactivityBridge update loop started - Multi-layer synchronization active');
     }
 }
 

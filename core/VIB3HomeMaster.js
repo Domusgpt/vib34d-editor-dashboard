@@ -40,7 +40,12 @@ class VIB3HomeMaster {
             // Navigation interaction states
             currentDragTension: 0.0, // Tension for cube drag (0-1)
             isPortalling: 0.0, // Flag/intensity for portal transition effect
-            navigationEffectTimers: {} // To handle timed effects
+            navigationEffectTimers: {}, // To handle timed effects
+
+            // Universal Scroll System State
+            scrollableElementsState: {}, // Keyed by element ID
+                                         // Each entry: { offsetX, offsetY, isDragging, snapBackTargetX, snapBackTargetY, snapBackStartTime, momentumVelocityX, momentumVelocityY, profileName, contentDimensionX, contentDimensionY, viewportDimensionX, viewportDimensionY, lastRawX, lastRawY, startX, startY, initialOffsetX, initialOffsetY, currentVelocityX, currentVelocityY, lastMoveTime }
+            activeDragScrollElementId: null
         };
         
         // Section Modifiers - Relational mathematical relationships (configurable)
@@ -164,15 +169,52 @@ class VIB3HomeMaster {
      */
     async loadEditorConfiguration() {
         try {
-            const response = await fetch('./presets/editor-dashboard-config.json');
-            this.editorConfig = await response.json();
-            console.log('📊 Editor configuration loaded:', this.editorConfig.editorDashboard.version);
+            // Load main editor dashboard config
+            const editorDashResponse = await fetch('./presets/editor-dashboard-config.json');
+            if (!editorDashResponse.ok) throw new Error(`Failed to load editor-dashboard-config.json: ${editorDashResponse.statusText}`);
+            this.editorConfig = await editorDashResponse.json();
+            console.log('📊 Editor dashboard configuration loaded:', this.editorConfig.editorDashboard?.version || 'unknown version');
+
+            // Load navigation config
+            try {
+                const navConfigResponse = await fetch('./presets/navigation-config.json');
+                if (!navConfigResponse.ok) throw new Error(`Failed to load navigation-config.json: ${navConfigResponse.statusText}`);
+                const navigationConfig = await navConfigResponse.json();
+                this.editorConfig.navigationConfig = navigationConfig; // Store it within editorConfig
+                console.log('🧭 Navigation configuration loaded successfully.');
+            } catch (navError) {
+                console.warn(`⚠️ Navigation configuration not found or failed to load: ${navError.message}. Navigation will use defaults.`);
+                if (!this.editorConfig.navigationConfig) { // ensure structure exists
+                    this.editorConfig.navigationConfig = { navigationParameters: {}, edgeMappings: {} };
+                }
+            }
+
+            // Load scroll physics presets
+            try {
+                const scrollPhysicsResponse = await fetch('./presets/scroll-physics-presets.json');
+                if (!scrollPhysicsResponse.ok) throw new Error(`Failed to load scroll-physics-presets.json: ${scrollPhysicsResponse.statusText}`);
+                this.editorConfig.scrollPhysicsPresets = await scrollPhysicsResponse.json();
+                console.log('📜 Scroll physics presets loaded successfully.');
+            } catch (scrollError) {
+                console.warn(`⚠️ Scroll physics presets not found or failed to load: ${scrollError.message}. Scroll system may use hardcoded defaults or fail.`);
+                if(!this.editorConfig.scrollPhysicsPresets) { // ensure structure exists
+                    this.editorConfig.scrollPhysicsPresets = { defaultProfile: {}, profiles: {} };
+                }
+            }
             
             // Apply master controls from config
             this.applyEditorMasterControls();
+
+            // Make UnifiedReactivityBridge aware of new navigation CSS properties
+            this.propagateNavigationConfigToBridge();
+
         } catch (error) {
-            console.warn('⚠️ Editor configuration not found, using defaults');
-            this.editorConfig = { editorDashboard: { masterControls: {}, pageRelations: {} } };
+            console.warn(`⚠️ Core editor configuration error: ${error.message}. Using defaults.`);
+            // Ensure the editorConfig object and its nested properties are initialized even if loading fails
+            if (!this.editorConfig) this.editorConfig = {};
+            if (!this.editorConfig.editorDashboard) this.editorConfig.editorDashboard = { masterControls: {}, pageRelations: {} };
+            if (!this.editorConfig.navigationConfig) this.editorConfig.navigationConfig = { navigationParameters: {}, edgeMappings: {} };
+            if (!this.editorConfig.scrollPhysicsPresets) this.editorConfig.scrollPhysicsPresets = { defaultProfile: {}, profiles: {} };
         }
     }
     
@@ -408,6 +450,66 @@ class VIB3HomeMaster {
                     this.masterState.intensity *= 0.99;
                     this.masterState.intensity = Math.max(0.3, this.masterState.intensity); // Minimum baseline
                 }
+
+                // Process scrollable elements for momentum and snap-back
+                for (const elementId in this.masterState.scrollableElementsState) {
+                    const state = this.masterState.scrollableElementsState[elementId];
+                    if (!state) continue;
+
+                    const profile = this.editorConfig.scrollPhysicsPresets?.profiles?.[state.profileName] ||
+                                    this.editorConfig.scrollPhysicsPresets?.defaultProfile ||
+                                    { sensitivity: {x:1,y:1}, dragThreshold: {value:5}, snapBack: {enabled:true, springTension:100, damping:15}, momentum: {enabled:true, friction:0.05, minVelocityToSustain:0.1}};
+
+                    let needsSync = false;
+
+                    // Momentum
+                    if (profile.momentum?.enabled && (state.momentumVelocityX || state.momentumVelocityY)) {
+                        const friction = profile.momentum.friction || 0.05;
+                        state.offsetX += state.momentumVelocityX;
+                        state.offsetY += state.momentumVelocityY;
+                        state.momentumVelocityX *= (1 - friction);
+                        state.momentumVelocityY *= (1 - friction);
+
+                        if (Math.abs(state.momentumVelocityX) < (profile.momentum.minVelocityToSustain || 0.1)) state.momentumVelocityX = 0;
+                        if (Math.abs(state.momentumVelocityY) < (profile.momentum.minVelocityToSustain || 0.1)) state.momentumVelocityY = 0;
+
+                        needsSync = true;
+
+                        if (state.momentumVelocityX === 0 && state.momentumVelocityY === 0 && profile.snapBack?.enabled && state.snapBackTargetX === null) {
+                            state.snapBackTargetX = 0; // Snap to origin after momentum
+                            state.snapBackTargetY = 0;
+                            state.snapBackStartTime = currentTime;
+                        }
+                    }
+
+                    // Snap-back
+                    if (profile.snapBack?.enabled && state.snapBackTargetX !== null) {
+                        const tension = profile.snapBack.springTension || 100;
+                        const dampingRatio = profile.snapBack.damping || 15; // This is more like a damping coefficient, not ratio
+
+                        const dx = state.snapBackTargetX - state.offsetX;
+                        const dy = state.snapBackTargetY - state.offsetY;
+
+                        // Simplified spring model (critical damping-like behavior)
+                        // Adjust speed of snapback by a factor, e.g., 0.1 for slower, 0.3 for faster
+                        const snapSpeedFactor = 0.15; // Make this configurable later if needed
+
+                        state.offsetX += dx * snapSpeedFactor;
+                        state.offsetY += dy * snapSpeedFactor;
+                        needsSync = true;
+
+                        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
+                            state.offsetX = state.snapBackTargetX;
+                            state.offsetY = state.snapBackTargetY;
+                            state.snapBackTargetX = null;
+                            state.snapBackTargetY = null;
+                            state.snapBackStartTime = 0;
+                            console.log(`SnapBack complete for ${elementId}`);
+                        }
+                    }
+                    // TODO: If needsSync and window.vib3Bridge, consider a targeted update for this element's scroll state
+                    // For now, global syncAllLayers will pick it up, or rely on bridge's own update loop.
+                }
                 
                 this.lastUpdateTime = currentTime;
             }
@@ -551,6 +653,150 @@ class VIB3HomeMaster {
                 break;
             default:
                 console.warn(`Unhandled interaction type in registerInteraction: ${type}`);
+        }
+    }
+
+    // Specific handler for scroll interactions, separate from generic registerInteraction
+    // to handle more complex data objects and state management per element.
+    handleScrollInteraction(type, data) {
+        console.log(`📜 Scroll Interaction: ${type}`, data);
+        const { elementId } = data;
+
+        if (!elementId) {
+            console.warn("Scroll interaction missing elementId", data);
+            return;
+        }
+
+        // Ensure element state exists
+        if (!this.masterState.scrollableElementsState[elementId]) {
+            this.masterState.scrollableElementsState[elementId] = {
+                offsetX: 0, offsetY: 0,
+                isDragging: false,
+                snapBackTargetX: null, snapBackTargetY: null, snapBackStartTime: 0,
+                momentumVelocityX: 0, momentumVelocityY: 0,
+                profileName: data.profileName || 'defaultProfile',
+                lastRawX: 0, lastRawY: 0 // For calculating deltas and velocity
+            };
+        }
+        const elementState = this.masterState.scrollableElementsState[elementId];
+
+        // Determine profile (default or specific)
+        const profile = this.editorConfig.scrollPhysicsPresets?.profiles?.[elementState.profileName] ||
+                        this.editorConfig.scrollPhysicsPresets?.defaultProfile ||
+                        { sensitivity: {x:1,y:1}, dragThreshold: {value:5}, snapBack: {enabled:true, springTension:100, damping:15}, momentum: {enabled:true, friction:0.05, minVelocityToSustain: 0.1}, allowedDirections: {value: "all"} };
+
+
+        switch (type) {
+            case 'dragScrollStart':
+                // data: { elementId, startX, startY, profileName? }
+                if (this.masterState.activeDragScrollElementId && this.masterState.activeDragScrollElementId !== elementId) {
+                    // End previous drag if a new one starts on a different element
+                    this.handleScrollInteraction('dragScrollEnd', { elementId: this.masterState.activeDragScrollElementId, velocityX:0, velocityY:0 });
+                }
+                this.masterState.activeDragScrollElementId = elementId;
+                elementState.isDragging = true;
+                elementState.startX = data.startX; // Store initial drag position on screen
+                elementState.startY = data.startY;
+                elementState.initialOffsetX = elementState.offsetX; // Store offset at drag start
+                elementState.initialOffsetY = elementState.offsetY;
+                elementState.momentumVelocityX = 0; // Stop any existing momentum/snap
+                elementState.momentumVelocityY = 0;
+                elementState.snapBackTargetX = null;
+                elementState.snapBackTargetY = null;
+                console.log(`DragScrollStart on ${elementId}: StartX=${elementState.startX}, InitialOffsetX=${elementState.initialOffsetX}`);
+                break;
+
+            case 'dragScrollMove':
+                // data: { elementId, currentX, currentY }
+                if (this.masterState.activeDragScrollElementId !== elementId || !elementState.isDragging) return;
+
+                const deltaX = data.currentX - elementState.startX;
+                const deltaY = data.currentY - elementState.startY;
+
+                if (profile.allowedDirections.value === 'vertical') {
+                    elementState.offsetX = elementState.initialOffsetX; // Keep X fixed
+                    elementState.offsetY = elementState.initialOffsetY + (deltaY * (profile.sensitivity.y || 1.0));
+                } else if (profile.allowedDirections.value === 'horizontal') {
+                    elementState.offsetX = elementState.initialOffsetX + (deltaX * (profile.sensitivity.x || 1.0));
+                    elementState.offsetY = elementState.initialOffsetY; // Keep Y fixed
+                } else { // all
+                    elementState.offsetX = elementState.initialOffsetX + (deltaX * (profile.sensitivity.x || 1.0));
+                    elementState.offsetY = elementState.initialOffsetY + (deltaY * (profile.sensitivity.y || 1.0));
+                }
+
+                // For momentum calculation at dragEnd
+                const timeNow = performance.now();
+                const moveDeltaTime = (timeNow - (elementState.lastMoveTime || timeNow)) / 1000; // seconds
+                if (moveDeltaTime > 0) {
+                    elementState.currentVelocityX = (data.currentX - elementState.lastRawX) / moveDeltaTime;
+                    elementState.currentVelocityY = (data.currentY - elementState.lastRawY) / moveDeltaTime;
+                }
+                elementState.lastMoveTime = timeNow;
+                elementState.lastRawX = data.currentX;
+                elementState.lastRawY = data.currentY;
+
+                // Placeholder for Infinite Scroll Logic (Vertical Example)
+                if (profile.infiniteScroll?.enabled && (profile.allowedDirections.value === 'all' || profile.allowedDirections.value === 'vertical')) {
+                    const contentH = elementState.contentDimensionY || 0;
+                    const viewportH = elementState.viewportDimensionY || 0;
+
+                    if (contentH > viewportH) { // Only loop if content is larger than viewport
+                        const scrollableDist = contentH - viewportH;
+                        // Simple modulo-like looping. A more robust solution would involve content duplication strategy.
+                        if (elementState.offsetY < -scrollableDist) {
+                            elementState.offsetY += scrollableDist;
+                            elementState.initialOffsetY += scrollableDist; // Adjust initial offset to maintain relative drag
+                            console.log(`Infinite scroll (bottom loop) for ${elementId}, new offsetY: ${elementState.offsetY}`);
+                        } else if (elementState.offsetY > 0) {
+                            elementState.offsetY -= scrollableDist;
+                            elementState.initialOffsetY -= scrollableDist;
+                            console.log(`Infinite scroll (top loop) for ${elementId}, new offsetY: ${elementState.offsetY}`);
+                        }
+                    }
+                }
+                // Similar placeholder for Horizontal Infinite Scroll
+                if (profile.infiniteScroll?.enabled && (profile.allowedDirections.value === 'all' || profile.allowedDirections.value === 'horizontal')) {
+                    const contentW = elementState.contentDimensionX || 0;
+                    const viewportW = elementState.viewportDimensionX || 0;
+                     if (contentW > viewportW) {
+                        const scrollableDist = contentW - viewportW;
+                        if (elementState.offsetX < -scrollableDist) {
+                            elementState.offsetX += scrollableDist;
+                            elementState.initialOffsetX += scrollableDist;
+                        } else if (elementState.offsetX > 0) {
+                            elementState.offsetX -= scrollableDist;
+                            elementState.initialOffsetX -= scrollableDist;
+                        }
+                    }
+                }
+
+
+                // console.log(`DragScrollMove on ${elementId}: OffsetX=${elementState.offsetX.toFixed(2)}, OffsetY=${elementState.offsetY.toFixed(2)}`);
+                break;
+
+            case 'dragScrollEnd':
+                // data: { elementId } (velocities are now calculated in dragScrollMove)
+                if (this.masterState.activeDragScrollElementId !== elementId || !elementState.isDragging) return;
+
+                elementState.isDragging = false;
+                this.masterState.activeDragScrollElementId = null;
+
+                if (profile.momentum?.enabled) {
+                    elementState.momentumVelocityX = elementState.currentVelocityX * 0.016 || 0; // Scale to pixels per frame approx
+                    elementState.momentumVelocityY = elementState.currentVelocityY * 0.016 || 0;
+                    console.log(`DragScrollEnd on ${elementId}: Momentum enabled. VelX=${elementState.momentumVelocityX.toFixed(2)}, VelY=${elementState.momentumVelocityY.toFixed(2)}`);
+                } else if (profile.snapBack?.enabled) {
+                    elementState.snapBackTargetX = 0; // Assuming snap to center/origin
+                    elementState.snapBackTargetY = 0;
+                    elementState.snapBackStartTime = performance.now();
+                    console.log(`DragScrollEnd on ${elementId}: SnapBack enabled.`);
+                }
+                elementState.currentVelocityX = 0;
+                elementState.currentVelocityY = 0;
+                break;
+
+            default:
+                console.warn(`Unhandled scroll interaction type: ${type}`);
         }
     }
     
