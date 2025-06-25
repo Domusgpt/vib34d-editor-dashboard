@@ -796,6 +796,87 @@ class UnifiedReactivityBridge {
         requestAnimationFrame(update);
         console.log('🔄 UnifiedReactivityBridge update loop started - Multi-layer synchronization active');
     }
+
+    // Redefined getWebGLParameters to source from HomeMaster
+    getWebGLParameters() {
+        if (!this.homeMaster || !this.homeMaster.masterState) {
+            console.warn("Bridge: HomeMaster not available for getWebGLParameters");
+            return {};
+        }
+
+        const ms = this.homeMaster.masterState;
+        const currentSectionKey = ms.activeSection;
+        const sectionParams = this.homeMaster.getParametersForSection(currentSectionKey) || {};
+
+        // Consolidate all relevant parameters for visualizers
+        const paramsForVisualizers = {
+            // From masterState directly (or editorOverrides if they exist)
+            intensity: this.homeMaster.masterState.editorOverrides.intensity !== undefined ? this.homeMaster.masterState.editorOverrides.intensity : sectionParams.intensity, // Prioritize editor override for global intensity
+            speed: this.homeMaster.masterState.editorOverrides.speed !== undefined ? this.homeMaster.masterState.editorOverrides.speed : sectionParams.speed,
+            density: this.homeMaster.masterState.editorOverrides.density !== undefined ? (this.homeMaster.masterState.editorOverrides.density / 3.0) : sectionParams.density, // Normalize editor's 1-5 scale
+
+            // Section-specific params (already incorporate masterState by getParametersForSection)
+            baseColor: sectionParams.baseColor,
+            geometry: sectionParams.geometry, // The numeric ID
+            geometryThemeName: sectionParams.geometryThemeName, // The string name for setTheme
+            dimension: sectionParams.dimension,
+            morphFactor: sectionParams.complexity, // Assuming complexity maps to morphFactor
+
+            // Interaction-driven states from masterState
+            chaosIntensity: ms.scrollChaos, // General chaos from scroll
+            gridVibrance: ms.editorOverrides.colorVibrancy || 1.0, // Example, map colorVibrancy to gridVibrance
+            sectionFocus: ms.activeHoverVisualizerId !== undefined ? 1.0 : 0.0, // Example: if a visualizer is hovered
+            portalIntensity: ms.isPortalling || ms.currentDragTension, // Example: combine effects
+            microChaos: ms.currentDragTension * 0.5, // Example: derive from drag tension
+            inverseFlow: (ms.currentDragTension > 0.5) ? 0.3 : 0.0, // Example
+
+            // Content guidance - these should ideally be managed by HomeMaster too
+            // For now, if they are still CSS variables, they might be missed here.
+            // Let's assume HomeMaster will have them if they are to be reactive.
+            contentGravityX: ms.contentGravityTarget?.x || 0.5,
+            contentGravityY: ms.contentGravityTarget?.y || 0.5,
+            contentFlowStrength: ms.contentGravityActive ? 0.8 : 0.0, // Example
+            textProximity: ms.focusedTextElement ? 1.0 : 0.0, // Example
+
+            // Pass through any other relevant masterState properties or editorOverrides
+            ...ms.editorOverrides // e.g., colorVibrancy
+        };
+
+        // Remove undefined properties to avoid issues if visualizers expect numbers
+        for (const key in paramsForVisualizers) {
+            if (paramsForVisualizers[key] === undefined) {
+                // Decide on a default or remove. For safety, let's provide a sensible default or remove.
+                // For now, just logging. Visualizer's updateParameters should handle undefined.
+                // console.warn(`WebGL param ${key} is undefined.`);
+            }
+        }
+        // console.log("Bridge: getWebGLParameters output:", paramsForVisualizers);
+        return paramsForVisualizers;
+    }
+
+    // syncAllLayers will now use the new getWebGLParameters
+     syncAllLayers() {
+        // Update all CSS custom properties (current logic for this is fine)
+        Object.entries(this.cssProperties).forEach(([property, value]) => {
+            document.documentElement.style.setProperty(property, value);
+        });
+
+        const webGLParams = this.getWebGLParameters();
+
+        this.visualizers.forEach(viz => {
+            if (!viz) return;
+
+            if (viz.updateParameters) {
+                viz.updateParameters(webGLParams); // This now includes geometryThemeName
+            }
+            // The setTheme call is now redundant here if updateParameters handles geometryThemeName
+            // else if (webGLParams.geometryThemeName && viz.setTheme && viz.currentTheme !== webGLParams.geometryThemeName) {
+            //    viz.setTheme(webGLParams.geometryThemeName);
+            // }
+        });
+
+        console.log('🔄 All visual layers synchronized using HomeMaster state.');
+    }
 }
 
 export default UnifiedReactivityBridge;

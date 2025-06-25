@@ -1537,21 +1537,23 @@
                 this.params = { ...this.themeConfigs.hypercube };
                 
                 // ENHANCED INTERACTION STATE SYSTEM  
-                this.mouseX = 0.5;
-                this.mouseY = 0.5;
-                this.mouseIntensity = 0.0;
-                this.clickIntensity = 0.0;
-                this.clickDecay = 0.95;
+                // this.mouseX = 0.5; // Will be driven by params from bridge if needed for direct effects
+                // this.mouseY = 0.5;
+                // this.mouseIntensity = 0.0; // Local mouse intensity, if still needed for very specific shader effects not managed globally
+                // this.clickIntensity = 0.0; // Local click intensity
+                // this.clickDecay = 0.95;
                 
                 // GRID DENSITY CHANGES FOR REAL-TIME REACTIVITY
-                this.baseDensity = 6.0 + Math.random() * 4.0;
-                this.densityVariation = 0.0;
-                this.densityTarget = 0.0;
-                
-                this.currentState = 0;
-                this.targetState = 0;
-                this.transitionProgress = 1.0;
-                this.chaosIntensity = 0.0;
+                this.baseDensity = 6.0 + Math.random() * 4.0; // Retain for themeConfig generation, or make themeConfigs fully static
+                // this.densityVariation = 0.0; // Seems unused now
+                // this.densityTarget = 0.0;  // Seems unused now
+
+                // this.currentState = 0; // Deprecated: Theme/section state managed by HomeMaster
+                // this.targetState = 0;  // Deprecated
+                this.transitionProgress = 1.0; // Still used for theme transitions
+                this.transitionToParams = null; // Will hold target theme parameters during transition
+
+                this.chaosIntensity = 0.0; // Will be set by updateParameters
                 
                 // instanceParams already assigned above - just add missing properties
                 this.gridVibrance = 1.0;
@@ -1564,37 +1566,11 @@
                 this.contentFlowStrength = 0.0;
                 this.textProximity = 0.0;
                 
-                // ENHANCED 4D POLYTOPAL STATE DEFINITIONS
-                this.states = [
-                    { // HOME - HYPERCUBE SOVEREIGNTY
-                        geometry: 0.0, density: this.baseDensity, speed: 0.5,
-                        color: [1.0, 0.0, 1.0], dimension: 3.5,
-                        name: 'HOME', geometryName: 'Hypercube'
-                    },
-                    { // TECH - TETRAHEDRON PRECISION
-                        geometry: 1.0, density: this.baseDensity * 0.7, speed: 0.3,
-                        color: [0.0, 1.0, 1.0], dimension: 3.2,
-                        name: 'TECH', geometryName: 'Tetrahedron'
-                    },
-                    { // MEDIA - SPHERE POTENTIAL
-                        geometry: 2.0, density: this.baseDensity * 1.3, speed: 0.8,
-                        color: [1.0, 1.0, 0.0], dimension: 3.8,
-                        name: 'MEDIA', geometryName: 'Sphere'
-                    },
-                    { // AUDIO - TORUS FLOW
-                        geometry: 3.0, density: this.baseDensity * 0.9, speed: 0.6,
-                        color: [0.0, 1.0, 0.0], dimension: 3.6,
-                        name: 'AUDIO', geometryName: 'Torus'
-                    },
-                    { // QUANTUM - WAVE NEXUS
-                        geometry: 6.0, density: this.baseDensity * 1.5, speed: 0.7,
-                        color: [1.0, 0.0, 0.5], dimension: 3.9,
-                        name: 'QUANTUM', geometryName: 'Wave'
-                    }
-                ];
+                // ENHANCED 4D POLYTOPAL STATE DEFINITIONS (this.states) is now DEPRECATED.
+                // Theme parameters are stored in this.themeConfigs and applied via this.params and this.transitionToParams.
                 
-                this.mouseX = 0.5;
-                this.mouseY = 0.5;
+                // this.mouseX = 0.5; // These are now set by updateParameters if needed for local effects
+                // this.mouseY = 0.5;
                 this.startTime = Date.now();
                 
                 // Automatically determine geometry based on role if it's a hypercube face
@@ -1606,6 +1582,68 @@
                 this.resize();
                 
                 console.log(`✅ ReactiveHyperAVCore initialized (${role}) - Geometry: ${this.currentTheme}`);
+            }
+
+            updateParameters(newParams) {
+                // console.log(`Viz ${this.instanceId || this.role}: updateParameters received`, newParams);
+                if (!newParams) return;
+
+                // Theme/Geometry update
+                if (newParams.geometryThemeName && newParams.geometryThemeName !== this.currentTheme) {
+                    this.setTheme(newParams.geometryThemeName);
+                }
+
+                // Update direct properties used in render loop if they exist in newParams
+                // These were previously read from CSS vars or set by other systems directly.
+                const directParams = [
+                    'gridVibrance', 'sectionFocus', 'portalIntensity',
+                    'microChaos', 'inverseFlow', 'contentGravityX', 'contentGravityY',
+                    'contentFlowStrength', 'textProximity', 'chaosIntensity'
+                    // 'intensity' from instanceParams might be overridden if passed
+                ];
+
+                for (const key of directParams) {
+                    if (newParams.hasOwnProperty(key)) {
+                        this[key] = newParams[key];
+                    }
+                }
+
+                // Parameters that might affect 'this.params' (which are from themeConfigs)
+                // or 'this.instanceParams' (which are from roleParameterMap)
+                // For now, these are primarily set by setTheme and constructor.
+                // If HomeMaster/Bridge are to override these granularly, logic would go here.
+                // Example:
+                if (newParams.hasOwnProperty('baseColor') && this.params) {
+                     this.params.baseColor = newParams.baseColor;
+                }
+                if (newParams.hasOwnProperty('gridDensity') && this.params) {
+                     this.params.gridDensity = newParams.gridDensity; // Overrides theme's gridDensity
+                }
+                 if (newParams.hasOwnProperty('rotationSpeed') && this.params) {
+                     this.params.rotationSpeed = newParams.rotationSpeed;
+                }
+                if (newParams.hasOwnProperty('morphFactor') && this.params) {
+                    this.params.morphFactor = newParams.morphFactor;
+                }
+                if (newParams.hasOwnProperty('dimension') && this.params) {
+                    this.params.dimension = newParams.dimension;
+                }
+
+
+                // Parameters that might affect 'this.instanceParams'
+                // These are usually role-based and set at init. Overriding them here needs care.
+                if (newParams.hasOwnProperty('instanceIntensity') && this.instanceParams) { // Renamed to avoid conflict with global intensity
+                    this.instanceParams.intensity = newParams.instanceIntensity;
+                }
+                 if (newParams.hasOwnProperty('instanceDensityMult') && this.instanceParams) {
+                    this.instanceParams.densityMult = newParams.instanceDensityMult;
+                }
+                if (newParams.hasOwnProperty('instanceSpeedMult') && this.instanceParams) {
+                    this.instanceParams.speedMult = newParams.instanceSpeedMult;
+                }
+                if (newParams.hasOwnProperty('instanceColorShift') && this.instanceParams) { // Renamed to avoid conflict
+                    this.instanceParams.colorShift = newParams.instanceColorShift;
+                }
             }
             
             autoDetectFaceGeometry() {
@@ -1666,66 +1704,133 @@
             }
             
             setupInteractions() {
-                let lastScrollY = window.scrollY;
-                let lastScrollTime = Date.now();
-                
-                // Mouse movement
-                this.canvas.addEventListener('mousemove', (e) => {
+                // Remove direct update of this.interactionState.
+                // Instead, queue events to UnifiedReactivityBridge.
+                // VIB3HomeMaster will process these and update global state.
+                // Effects will flow back via updateParameters().
+
+                const getCoords = (e) => {
                     const rect = this.canvas.getBoundingClientRect();
-                    this.interactionState.mouseX = (e.clientX - rect.left) / rect.width;
-                    this.interactionState.mouseY = 1.0 - (e.clientY - rect.top) / rect.height;
-                    this.interactionState.lastActivity = Date.now();
-                    this.updateInteractionState('move', 0.3);
-                });
-                
-                // Scroll tracking
-                window.addEventListener('scroll', () => {
-                    const currentScrollY = window.scrollY;
-                    const currentTime = Date.now();
-                    const scrollDelta = Math.abs(currentScrollY - lastScrollY);
-                    const timeDelta = currentTime - lastScrollTime;
-                    
-                    this.interactionState.scrollVelocity = timeDelta > 0 ? scrollDelta / timeDelta : 0;
-                    this.interactionState.lastActivity = currentTime;
-                    
-                    this.updateInteractionState('scroll', Math.min(this.interactionState.scrollVelocity * 10, 1.0));
-                    
-                    lastScrollY = currentScrollY;
-                    lastScrollTime = currentTime;
-                });
-                
-                // Click and hold
-                this.canvas.addEventListener('mousedown', (e) => {
-                    this.interactionState.isHolding = true;
-                    this.interactionState.holdStart = Date.now();
-                    this.interactionState.lastActivity = Date.now();
-                    this.updateInteractionState('click', 0.8);
-                });
-                
-                this.canvas.addEventListener('mouseup', () => {
-                    this.interactionState.isHolding = false;
-                    this.interactionState.holdStart = 0;
-                    this.updateInteractionState('release', 0.1);
-                });
-                
-                // Touch support
-                this.canvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    if (touch) {
-                        const rect = this.canvas.getBoundingClientRect();
-                        this.interactionState.mouseX = (touch.clientX - rect.left) / rect.width;
-                        this.interactionState.mouseY = 1.0 - (touch.clientY - rect.top) / rect.height;
-                        this.interactionState.lastActivity = Date.now();
-                        this.updateInteractionState('touch', 0.5);
+                    return {
+                        x: (e.clientX - rect.left) / rect.width,
+                        y: 1.0 - ((e.clientY - rect.top) / rect.height) // Inverted Y for typical shader coords
+                    };
+                };
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'mousemove',
+                            elementId: this.instanceId || this.role, // Use a unique ID
+                            canvasRole: this.role,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            clientX: e.clientX, clientY: e.clientY, // Raw screen coords might also be useful
+                            timestamp: performance.now()
+                        });
                     }
                 });
+                
+                this.canvas.addEventListener('mousedown', (e) => {
+                    if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'mousedown',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            button: e.button,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                });
+                
+                this.canvas.addEventListener('mouseup', (e) => {
+                     if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'mouseup',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            button: e.button,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                });
+
+                this.canvas.addEventListener('click', (e) => { // Added click for distinct click vs mousedown/up
+                     if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'click',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            button: e.button,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                });
+
+                // Touch support - simplified, could be expanded
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // Often needed for touch on canvas
+                    if (e.touches[0] && window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e.touches[0]);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'touchstart',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault(); // Often needed for touch on canvas
+                     if (e.touches[0] && window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e.touches[0]);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'touchmove',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault(); // Often needed for touch on canvas
+                     if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        // Touchend doesn't have coordinates in e.touches directly in the same way.
+                        // We might need to use changedTouches or rely on last known from touchmove.
+                        // For simplicity, not passing coords for touchend for now, or use last known if stored.
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'touchend',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            timestamp: performance.now()
+                        });
+                    }
+                }, { passive: false });
+
+                // Removed window scroll listener from here as it's global, not per-visualizer.
+                // Removed updateInteractionState as it's no longer used.
             }
             
-            updateInteractionState(type, intensity) {
-                this.interactionState.type = type;
-                this.interactionState.intensity = Math.max(this.interactionState.intensity, intensity);
-            }
+            // updateInteractionState(type, intensity) { // No longer needed
+            //     this.interactionState.type = type;
+            //     this.interactionState.intensity = Math.max(this.interactionState.intensity, intensity);
+            // }
             
             setTheme(themeName) {
                 if (this.themeConfigs && this.themeConfigs[themeName]) {
@@ -2010,12 +2115,12 @@
                 this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
             }
             
-            snapToState(stateIndex) {
-                if (stateIndex !== this.targetState) {
-                    this.targetState = stateIndex;
-                    this.transitionProgress = 0.0;
-                }
-            }
+            // snapToState(stateIndex) { // Deprecated: setTheme is used now.
+            //     if (stateIndex !== this.targetState) {
+            //         this.targetState = stateIndex;
+            //         this.transitionProgress = 0.0;
+            //     }
+            // }
             
             updateInteraction(mouseX, mouseY) {
                 this.mouseX = mouseX;
@@ -2032,51 +2137,62 @@
                     this.transitionProgress = Math.min(1.0, this.transitionProgress + 0.025);
                 }
                 
-                // Safety check for state bounds
-                const currentStateIndex = Math.max(0, Math.min(this.currentState, this.states.length - 1));
-                const targetStateIndex = Math.max(0, Math.min(this.targetState, this.states.length - 1));
-                
-                const currentState = this.states[currentStateIndex];
-                const targetState = this.states[targetStateIndex];
-                
-                if (!currentState || !targetState) {
-                    console.error('BlogVisualizer: Invalid state indices', { 
-                        currentState: this.currentState, 
-                        targetState: this.targetState, 
-                        statesLength: this.states.length 
-                    });
-                    return;
-                }
-                
-                const t = this.transitionProgress;
-                const smoothT = t * t * (3.0 - 2.0 * t);
-                
-                const interpolated = {
-                    geometry: currentState.geometry + (targetState.geometry - currentState.geometry) * smoothT,
-                    density: currentState.density + (targetState.density - currentState.density) * smoothT,
-                    speed: currentState.speed + (targetState.speed - currentState.speed) * smoothT,
-                    color: [
-                        currentState.color[0] + (targetState.color[0] - currentState.color[0]) * smoothT,
-                        currentState.color[1] + (targetState.color[1] - currentState.color[1]) * smoothT,
-                        currentState.color[2] + (targetState.color[2] - currentState.color[2]) * smoothT
-                    ]
+                // Safety check for state bounds -- DEPRECATED internal state machine
+
+                let paramsForUniforms = { // Start with current theme's base values, mapping names
+                    geometry: this.params.geometry,
+                    density: this.params.gridDensity,
+                    speed: this.params.rotationSpeed,
+                    color: this.params.baseColor,
+                    // Include other params that might be part of the theme and used by shaders directly or indirectly
+                    dimension: this.params.dimension,
+                    morphFactor: this.params.morphFactor,
+                    glitchIntensity: this.params.glitchIntensity
                 };
-                
-                if (this.transitionProgress >= 1.0 && this.currentState !== this.targetState) {
-                    this.currentState = this.targetState;
+
+                if (this.transitionToParams && this.transitionProgress < 1.0) {
+                    const t = this.transitionProgress * this.transitionProgress * (3.0 - 2.0 * this.transitionProgress); // Smoothstep
+
+                    const currentP = this.params; // Parameters of the theme being transitioned FROM
+                    const targetP = this.transitionToParams; // Parameters of the theme being transitioned TO
+
+                    paramsForUniforms = {
+                        geometry: currentP.geometry + (targetP.geometry - currentP.geometry) * t,
+                        density: currentP.gridDensity + (targetP.gridDensity - currentP.gridDensity) * t,
+                        speed: currentP.rotationSpeed + (targetP.rotationSpeed - currentP.rotationSpeed) * t,
+                        color: currentP.baseColor.map((val, i) => val + (targetP.baseColor[i] - val) * t),
+                        dimension: currentP.dimension + (targetP.dimension - currentP.dimension) * t,
+                        morphFactor: currentP.morphFactor + (targetP.morphFactor - currentP.morphFactor) * t,
+                        glitchIntensity: currentP.glitchIntensity + (targetP.glitchIntensity - currentP.glitchIntensity) * t,
+                    };
+                } else if (this.transitionToParams && this.transitionProgress >= 1.0) {
+                    this.params = { ...this.transitionToParams }; // Transition complete, adopt target params fully
+                    this.transitionToParams = null; // Clear target
+                    paramsForUniforms = { // Use final target values, mapping names
+                        geometry: this.params.geometry,
+                        density: this.params.gridDensity,
+                        speed: this.params.rotationSpeed,
+                        color: this.params.baseColor,
+                        dimension: this.params.dimension,
+                        morphFactor: this.params.morphFactor,
+                        glitchIntensity: this.params.glitchIntensity,
+                    };
                 }
+                // If no transition, paramsForUniforms already holds this.params correctly mapped.
                 
                 const time = Date.now() - this.startTime;
                 
                 this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
                 this.gl.uniform1f(this.uniforms.time, time);
-                this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
-                this.gl.uniform1f(this.uniforms.geometry, interpolated.geometry);
-                this.gl.uniform1f(this.uniforms.density, interpolated.density);
-                this.gl.uniform1f(this.uniforms.speed, interpolated.speed);
-                this.gl.uniform3fv(this.uniforms.color, new Float32Array(interpolated.color));
+                this.gl.uniform2f(this.uniforms.mouse, this.mouseX !== undefined ? this.mouseX : 0.5, this.mouseY !== undefined ? this.mouseY : 0.5); // Use internal mouse if set by updateParams, else default
+
+                this.gl.uniform1f(this.uniforms.geometry, paramsForUniforms.geometry);
+                this.gl.uniform1f(this.uniforms.density, paramsForUniforms.density);
+                this.gl.uniform1f(this.uniforms.speed, paramsForUniforms.speed);
+                this.gl.uniform3fv(this.uniforms.color, new Float32Array(paramsForUniforms.color));
+
                 // ENSURE INSTANCEPARAMS EXISTS (should be set in constructor)
-                if (!this.instanceParams) {
+                if (!this.instanceParams) { // This should ideally not happen if constructor is robust
                     this.instanceParams = {
                         intensity: 0.5,
                         densityMult: 1.0,
@@ -2095,38 +2211,21 @@
                 this.gl.uniform1f(this.uniforms.instanceDensity, safeDensityMult);
                 this.gl.uniform1f(this.uniforms.instanceSpeed, safeSpeedMult);
                 this.gl.uniform1f(this.uniforms.colorShift, safeColorShift);
-                this.gl.uniform1f(this.uniforms.chaosIntensity, this.chaosIntensity || 0.0);
-                
-                // Enhanced reactivity uniforms
-                const rootStyle = getComputedStyle(document.documentElement);
-                this.gl.uniform1f(this.uniforms.gridVibrance, 
-                    this.gridVibrance !== undefined ? this.gridVibrance : 
-                    parseFloat(rootStyle.getPropertyValue('--grid-vibrance')) || 1.0);
-                this.gl.uniform1f(this.uniforms.sectionFocus, 
-                    this.sectionFocus !== undefined ? this.sectionFocus : 
-                    parseFloat(rootStyle.getPropertyValue('--section-focus')) || 0.0);
-                this.gl.uniform1f(this.uniforms.portalIntensity, 
-                    this.portalIntensity !== undefined ? this.portalIntensity : 
-                    parseFloat(rootStyle.getPropertyValue('--portal-intensity')) || 0.0);
-                this.gl.uniform1f(this.uniforms.microChaos, 
-                    this.microChaos !== undefined ? this.microChaos : 
-                    parseFloat(rootStyle.getPropertyValue('--micro-chaos')) || 0.0);
-                this.gl.uniform1f(this.uniforms.inverseFlow, 
-                    this.inverseFlow !== undefined ? this.inverseFlow : 
-                    parseFloat(rootStyle.getPropertyValue('--inverse-flow')) || 0.0);
-                
-                // Content guidance uniforms
-                this.gl.uniform2f(this.uniforms.contentGravity, 
-                    this.contentGravityX !== undefined ? this.contentGravityX : 
-                    parseFloat(rootStyle.getPropertyValue('--content-gravity-x')) || 0.5,
-                    this.contentGravityY !== undefined ? this.contentGravityY : 
-                    parseFloat(rootStyle.getPropertyValue('--content-gravity-y')) || 0.5);
-                this.gl.uniform1f(this.uniforms.contentFlowStrength, 
-                    this.contentFlowStrength !== undefined ? this.contentFlowStrength : 
-                    parseFloat(rootStyle.getPropertyValue('--content-flow-strength')) || 0.0);
-                this.gl.uniform1f(this.uniforms.textProximity, 
-                    this.textProximity !== undefined ? this.textProximity : 
-                    parseFloat(rootStyle.getPropertyValue('--text-proximity')) || 0.0);
+                this.gl.uniform1f(this.uniforms.chaosIntensity, this.chaosIntensity !== undefined ? this.chaosIntensity : 0.0);
+
+                // Enhanced reactivity uniforms - Now using internal properties set by updateParameters()
+                this.gl.uniform1f(this.uniforms.gridVibrance, this.gridVibrance !== undefined ? this.gridVibrance : 1.0);
+                this.gl.uniform1f(this.uniforms.sectionFocus, this.sectionFocus !== undefined ? this.sectionFocus : 0.0);
+                this.gl.uniform1f(this.uniforms.portalIntensity, this.portalIntensity !== undefined ? this.portalIntensity : 0.0);
+                this.gl.uniform1f(this.uniforms.microChaos, this.microChaos !== undefined ? this.microChaos : 0.0);
+                this.gl.uniform1f(this.uniforms.inverseFlow, this.inverseFlow !== undefined ? this.inverseFlow : 0.0);
+
+                // Content guidance uniforms - Now using internal properties
+                this.gl.uniform2f(this.uniforms.contentGravity,
+                    this.contentGravityX !== undefined ? this.contentGravityX : 0.5,
+                    this.contentGravityY !== undefined ? this.contentGravityY : 0.5);
+                this.gl.uniform1f(this.uniforms.contentFlowStrength, this.contentFlowStrength !== undefined ? this.contentFlowStrength : 0.0);
+                this.gl.uniform1f(this.uniforms.textProximity, this.textProximity !== undefined ? this.textProximity : 0.0);
                 
                 this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
             }
