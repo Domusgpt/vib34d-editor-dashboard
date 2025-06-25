@@ -356,6 +356,15 @@ class UnifiedReactivityBridge {
             case 'cubeNavigation':
                 this.processCubeNavigation(data);
                 break;
+            case 'visualizerInteraction': // New case
+                if (this.homeMaster && this.homeMaster.handleVisualizerInteraction) {
+                    this.homeMaster.handleVisualizerInteraction(data);
+                } else {
+                    console.warn("HomeMaster or handleVisualizerInteraction not found for visualizerInteraction event.", data);
+                }
+                break;
+            default:
+                console.warn(`Bridge: Unknown event type to process: ${type}`, data);
         }
     }
     
@@ -659,9 +668,35 @@ class UnifiedReactivityBridge {
         });
         
         // Update WebGL visualizers
+        const currentSectionKey = this.homeMaster?.masterState?.activeSection;
+        let sectionParams = null;
+        let geometryThemeName = null;
+
+        if (currentSectionKey !== undefined && this.homeMaster?.getParametersForSection) {
+            sectionParams = this.homeMaster.getParametersForSection(currentSectionKey);
+            geometryThemeName = sectionParams?.geometryThemeName; // Assumes HomeMaster provides this
+        }
+
+        const webGLGlobalParams = this.getWebGLParameters(); // General reactive parameters
+
         this.visualizers.forEach(viz => {
+            if (!viz) return;
+
+            // Update general reactive parameters
             if (viz.updateParameters) {
-                viz.updateParameters(this.getWebGLParameters());
+                viz.updateParameters(webGLGlobalParams);
+            }
+
+            // Update theme/geometry if it has changed for the section
+            if (geometryThemeName && viz.setTheme && viz.currentTheme !== geometryThemeName) {
+                // Check currentTheme to prevent redundant setTheme calls if possible
+                // Note: viz.currentTheme would need to be exposed or tracked by the bridge if not already.
+                // For now, we assume setTheme handles internal checks or is safe to call.
+                viz.setTheme(geometryThemeName);
+                console.log(`🎨 Bridge updated viz ${viz.instanceId || viz.role || 'unknown'} to theme: ${geometryThemeName}`);
+            } else if (geometryThemeName && viz.setTheme && !viz.hasOwnProperty('currentTheme')) {
+                 // If viz doesn't track currentTheme, call setTheme anyway if geometryThemeName is available
+                viz.setTheme(geometryThemeName);
             }
         });
         
@@ -716,8 +751,279 @@ class UnifiedReactivityBridge {
             frameTime: this.frameTime,
             visualizerCount: this.visualizers.length,
             editorParameters: this.getWebGLParameters(),
-            isEditorConnected: !!this.homeMaster?.editorConfig
+            isEditorConnected: !!this.homeMaster?.editorConfig,
+            scrollableElementsState: this.homeMaster?.masterState?.scrollableElementsState || {}
         };
+    }
+
+    // Helper to ensure CSS property for a scrollable element exists if needed by other systems
+    // For now, primarily relies on setting directly.
+    _ensureScrollCssProperties(elementId) {
+        const xVar = `--${elementId}-scroll-x`;
+        const yVar = `--${elementId}-scroll-y`;
+        if (!this.cssProperties.hasOwnProperty(xVar)) {
+            // console.log(`Bridge: Registering new scroll CSS var: ${xVar}`);
+            // this.cssProperties[xVar] = '0px'; // Initialize if needed, but direct setProperty is primary
+        }
+        if (!this.cssProperties.hasOwnProperty(yVar)) {
+            // console.log(`Bridge: Registering new scroll CSS var: ${yVar}`);
+            // this.cssProperties[yVar] = '0px';
+        }
+    }
+
+    // Modified startUpdateLoop to include syncing scroll states
+    startUpdateLoop() {
+        let lastActiveSection = -1;
+        let lastTransitionProgress = -1;
+        let lastDragTension = -1;
+        let lastIsPortalling = -1;
+
+        const update = () => {
+            this.processEventQueue(); // Process interactions that might change HomeMaster state
+
+            if (this.homeMaster) {
+                const ms = this.homeMaster.masterState;
+                const systemState = this.homeMaster.getSystemState(); // For coherence
+
+                // Update system coherence CSS variable
+                this.updateCSSProperty('--system-coherence', ms.coherence.toFixed(3));
+
+                // Sync scrollable elements states (already doing this, good)
+                if (ms.scrollableElementsState) {
+                    for (const elementId in ms.scrollableElementsState) {
+                        const state = ms.scrollableElementsState[elementId];
+                        if (state) {
+                            this.updateCSSProperty(`--${elementId}-scroll-x`, `${state.offsetX || 0}px`);
+                            this.updateCSSProperty(`--${elementId}-scroll-y`, `${state.offsetY || 0}px`);
+                        }
+                    }
+                }
+
+                // Check for section changes or transition progress to trigger full DOM/WebGL sync
+                if (ms.activeSection !== lastActiveSection ||
+                    ms.transitionProgress !== lastTransitionProgress ||
+                    ms.currentDragTension !== lastDragTension ||
+                    ms.isPortalling !== lastIsPortalling) {
+
+                    this.syncAllLayers(); // This will handle DOM and WebGL updates
+
+                    lastActiveSection = ms.activeSection;
+                    lastTransitionProgress = ms.transitionProgress;
+                    lastDragTension = ms.currentDragTension;
+                    lastIsPortalling = ms.isPortalling;
+                } else {
+                    // If no major state change, perhaps only update frequently changing CSS vars for performance
+                    this.updateCSSProperty('--cube-tension', ms.currentDragTension?.toFixed(3) || '0.0');
+                    this.updateCSSProperty('--portal-intensity', ms.isPortalling?.toFixed(3) || '0.0');
+                    // Potentially other lightweight CSS updates if needed, but syncAllLayers covers the rest
+                }
+            }
+            requestAnimationFrame(update);
+        };
+
+        requestAnimationFrame(update);
+        console.log('🔄 UnifiedReactivityBridge update loop started - Multi-layer synchronization active');
+    }
+
+    // getWebGLParameters is already updated to source from HomeMaster.
+
+    // syncAllLayers will be enhanced for DOM updates.
+    syncAllLayers() {
+        if (!this.homeMaster || !this.homeMaster.masterState) {
+            console.warn("Bridge: HomeMaster not available for syncAllLayers.");
+            return;
+        }
+        const ms = this.homeMaster.masterState;
+        const currentSectionKey = ms.activeSection;
+        const sectionParams = this.homeMaster.getParametersForSection(currentSectionKey);
+
+        if (!sectionParams) {
+            console.warn(`Bridge: Could not get parameters for section ${currentSectionKey}. DOM/WebGL sync might be incomplete.`);
+            return;
+        }
+
+        // 1. Update CSS Custom Properties (already partially done in updateLoop, ensure all relevant ones are here)
+        // These are general properties. Specific ones like scroll are handled in the loop.
+        Object.entries(this.cssProperties).forEach(([key, value]) => {
+             // Update from internal cache, which should be kept fresh by specific updateCSSProperty calls
+            document.documentElement.style.setProperty(key, value);
+        });
+        // Specific navigation-related CSS properties from masterState
+        this.updateCSSProperty('--cube-tension', ms.currentDragTension?.toFixed(3) || '0.0');
+        this.updateCSSProperty('--portal-intensity', ms.isPortalling?.toFixed(3) || '0.0');
+        // Add other masterState driven CSS vars here if any
+
+        // 2. DOM Updates for Cube Face and Layout
+        const dynamicFaceElement = document.getElementById('dynamic-face');
+        const blogContainerElement = document.querySelector('#dynamic-face .blog-container'); // More specific
+
+        if (dynamicFaceElement) {
+            const targetGeometry = sectionParams.geometryThemeName || 'hypercube'; // Fallback to hypercube
+            dynamicFaceElement.setAttribute('data-geometry', targetGeometry);
+            // data-face might be tied to tesseract structure, not section theme directly.
+            // If it needs to change, logic would be here. For now, assume data-geometry is key for styling.
+        }
+
+        if (blogContainerElement) {
+            const layoutPrefix = "layout-";
+            // Remove any existing layout classes
+            blogContainerElement.className.split(' ').forEach(cls => {
+                if (cls.startsWith(layoutPrefix)) {
+                    blogContainerElement.classList.remove(cls);
+                }
+            });
+            // Add new layout class
+            const targetLayout = sectionParams.geometryThemeName || 'hypercube';
+            blogContainerElement.classList.add(layoutPrefix + targetLayout);
+        }
+
+        // 3. DOM Updates for Content (using existing template structure)
+        this.updateFaceContent(currentSectionKey, sectionParams.geometryThemeName);
+
+
+        // 4. Update WebGL Visualizers
+        this.visualizers.forEach(viz => {
+            if (!viz) return;
+            const vizId = viz.instanceId || viz.role;
+            const vizInfo = { id: vizId, role: viz.role };
+            const webGLParams = this.getWebGLParameters(vizInfo);
+
+            if (viz.updateParameters) {
+                viz.updateParameters(webGLParams);
+            }
+            // setTheme is implicitly handled by updateParameters if geometryThemeName is passed
+            // and viz.setTheme is smart enough or if webGLParams includes a numeric geometry id that viz uses.
+            // If explicit setTheme(string) is needed:
+            if (webGLParams.geometryThemeName && viz.setTheme && viz.currentTheme !== webGLParams.geometryThemeName) {
+                 viz.setTheme(webGLParams.geometryThemeName);
+            }
+        });
+
+        console.log(`🔄 All visual layers synchronized for section ${currentSectionKey} (${sectionParams.geometryThemeName}). Tension: ${ms.currentDragTension}, Portalling: ${ms.isPortalling}`);
+    }
+
+    updateFaceContent(sectionKey, geometryThemeName) {
+        // This function assumes the content structure from `vib3code-morphing-blog.html`'s #content-templates
+        const templateId = `template-${geometryThemeName}`;
+        const templateElement = document.getElementById(templateId);
+
+        if (!templateElement) {
+            console.warn(`Bridge: Content template not found for ${geometryThemeName} (template ID: ${templateId})`);
+            // Potentially clear content or show a placeholder
+            this._clearAllCardContent();
+            return;
+        }
+
+        // Example: Update the main blog cards. This needs to be adapted to the actual card structure/IDs.
+        // This is a simplified version. A more robust solution would map sectionKey or geometryThemeName
+        // to specific content sets for each card. The existing `MorphingBlogSystem.stateContent`
+        // and `updateContent` logic could be adapted and moved here or be made accessible.
+
+        // For now, let's assume a simple update based on the first few cards and the template.
+        const dynamicFace = document.getElementById('dynamic-face');
+        if (!dynamicFace) return;
+
+        const cardsContentAreas = dynamicFace.querySelectorAll('.blog-card .card-content');
+
+        cardsContentAreas.forEach((cardContent, index) => {
+            const templateTitle = templateElement.querySelector('.card-title')?.textContent;
+            const templateSubtitle = templateElement.querySelector('.card-subtitle')?.textContent;
+            const templateArticleText = templateElement.querySelector('.article-content')?.textContent;
+
+            const titleEl = cardContent.querySelector('.card-title, #blog-title'); // #blog-title for header card
+            const subtitleEl = cardContent.querySelector('.card-subtitle, #header-subtitle');
+            const articleEl = cardContent.querySelector('.article-content');
+
+            if (titleEl) titleEl.textContent = templateTitle || (index === 0 ? 'VIB3CODE' : `Title for Card ${index +1}`);
+            if (subtitleEl) subtitleEl.textContent = templateSubtitle || (index === 0 ? 'Emergent Interface' : `Subtitle for Card ${index+1}`);
+            if (articleEl) {
+                articleEl.innerHTML = templateArticleText ? `<p>${templateArticleText.replace(/\n/g, '</p><p>')}</p>` : `<p>Content for section ${sectionKey}, card ${index+1}.</p>`;
+            }
+        });
+
+        // Update the top-left state indicator as well
+        const currentLayoutEl = document.getElementById('current-layout');
+        const currentThemeEl = document.getElementById('current-theme');
+        if(currentLayoutEl) currentLayoutEl.textContent = this.homeMaster?.sectionModifiers[sectionKey]?.name || geometryThemeName.toUpperCase();
+        if(currentThemeEl) currentThemeEl.textContent = geometryThemeName;
+
+        console.log(`Bridge: Updated face content to section ${sectionKey} (${geometryThemeName})`);
+    }
+
+    _clearAllCardContent() {
+        const dynamicFace = document.getElementById('dynamic-face');
+        if (!dynamicFace) return;
+        const cardsContentAreas = dynamicFace.querySelectorAll('.blog-card .card-content');
+        cardsContentAreas.forEach(cardContent => {
+            const titleEl = cardContent.querySelector('.card-title, #blog-title');
+            const subtitleEl = cardContent.querySelector('.card-subtitle, #header-subtitle');
+            const articleEl = cardContent.querySelector('.article-content');
+            if(titleEl) titleEl.textContent = "";
+            if(subtitleEl) subtitleEl.textContent = "";
+            if(articleEl) articleEl.innerHTML = "";
+        });
+    }
+     // getWebGLParameters method as previously defined (already good)
+    getWebGLParameters(vizInfo = {}) {
+        if (!this.homeMaster || !this.homeMaster.masterState) {
+            console.warn("Bridge: HomeMaster not available for getWebGLParameters");
+            return {};
+        }
+
+        const ms = this.homeMaster.masterState;
+        const currentSectionKey = ms.activeSection;
+        // Use getParametersForSection to get parameters that already include section-specific and role-specific modifiers
+        const sectionParams = this.homeMaster.getParametersForSection(currentSectionKey);
+        if (!sectionParams) {
+             console.warn(`Bridge: getParametersForSection returned null for sectionKey ${currentSectionKey}`);
+             return {};
+        }
+
+        // If getInstanceParameters is preferred for per-visualizer role customization:
+        // const instanceParams = this.homeMaster.getInstanceParameters(currentSectionKey, vizInfo.role);
+        // Then merge or select from sectionParams and instanceParams.
+        // For this example, let's assume getParametersForSection gives us most of what's needed
+        // and we add specific masterState values.
+
+        const paramsForVisualizers = {
+            intensity: ms.editorOverrides.intensity !== undefined ? ms.editorOverrides.intensity : sectionParams.intensity,
+            speed: ms.editorOverrides.speed !== undefined ? ms.editorOverrides.speed : sectionParams.speed,
+            density: ms.editorOverrides.density !== undefined ? (ms.editorOverrides.density / 3.0) : sectionParams.density,
+            baseColor: sectionParams.baseColor,
+            geometry: sectionParams.geometry,
+            geometryThemeName: sectionParams.geometryThemeName,
+            dimension: sectionParams.dimension,
+            morphFactor: sectionParams.complexity,
+
+            // Interaction-driven states from masterState
+            chaosIntensity: ms.scrollChaos || 0.0,
+            gridVibrance: ms.editorOverrides.colorVibrancy || 1.0,
+            // sectionFocus: (ms.hoveredVisualizerInfo?.id === vizInfo.id) ? 1.0 : 0.0, // More direct
+            sectionFocus: ms.masterState?.activeHoverVisualizerId === vizInfo.id ? 1.0 : 0.0, // Check if this is right property in ms
+            portalIntensity: ms.isPortalling || ms.currentDragTension || 0.0,
+            microChaos: ms.currentDragTension * 0.5 || 0.0,
+            inverseFlow: (ms.currentDragTension > 0.5) ? 0.3 : 0.0,
+
+            contentGravityX: ms.contentGravityTarget?.x || 0.5,
+            contentGravityY: ms.contentGravityTarget?.y || 0.5,
+            contentFlowStrength: ms.contentGravityActive ? 0.8 : 0.0,
+            textProximity: ms.focusedTextElement ? 1.0 : 0.0,
+
+            ...ms.editorOverrides,
+
+            isCurrentlyHovered: (ms.hoveredVisualizerInfo?.id === vizInfo.id),
+            normalizedMouseXOnViz: (ms.hoveredVisualizerInfo?.id === vizInfo.id) ? ms.hoveredVisualizerInfo.x : 0.5,
+            normalizedMouseYOnViz: (ms.hoveredVisualizerInfo?.id === vizInfo.id) ? ms.hoveredVisualizerInfo.y : 0.5,
+        };
+
+        // Clean up undefined properties
+        for (const key in paramsForVisualizers) {
+            if (paramsForVisualizers[key] === undefined) {
+                 // console.warn(`WebGL param ${key} for visualizer ${vizInfo.id} is undefined.`);
+                 delete paramsForVisualizers[key];
+            }
+        }
+        return paramsForVisualizers;
     }
 }
 

@@ -163,6 +163,16 @@
             --content-flow-strength: 0.0;
             --text-proximity: 0.0;
         }
+
+        .scroll-wrapper { /* For page-level drag scrolling */
+            width: 100%;
+            height: 100%;
+            /* CSS variables will be dynamically named based on elementId, e.g., --pageContentScrollWrapper-scroll-x */
+            /* transform: translate(var(--pageContentScrollWrapper-scroll-x, 0px), var(--pageContentScrollWrapper-scroll-y, 0px)); */
+            /* Actual transform will be applied by JS setting these vars, or specific CSS for the ID */
+            will-change: transform;
+            position: relative; /* Ensure it's a positioning context if children are absolute */
+        }
         
         /* MAIN BLOG CONTAINER */
         .blog-container {
@@ -402,8 +412,10 @@
                 rgba(0, 255, 0, 0.06) 75%,
                 rgba(255, 0, 128, 0.08) 100%
             );
-            overflow-y: auto;
-            transition: all 0.3s ease;
+            /* overflow-y: auto; */ /* Changed for transform-based scrolling */
+            overflow: hidden; /* Crucial for transform-based scrolling */
+            transition: all 0.3s ease; /* Existing transition, may need review with transform scrolling */
+            will-change: transform; /* Performance hint for scrolling */
         }
         
         .card-content::before {
@@ -1016,6 +1028,36 @@
     <!-- CORE ARCHITECTURE SYSTEMS -->
     <script type="module" src="./core/VIB3HomeMaster.js"></script>
     <script type="module" src="./core/UnifiedReactivityBridge.js"></script>
+    <script src="./core/DragScrollHandler.js"></script> <!-- Include the new handler -->
+    <style>
+        .no-select-during-drag {
+            user-select: none !important;
+            -webkit-user-select: none !important; /* Safari */
+            -moz-user-select: none !important;    /* Firefox */
+            -ms-user-select: none !important;     /* IE10+/Edge */
+        }
+
+        /* General style for scroll wrappers, including the page scroll area */
+        .scroll-wrapper {
+            width: 100%;
+            height: 100%;
+            will-change: transform;
+            position: relative; /* Important if children are absolutely positioned within it */
+        }
+
+        /* Specific rule for the main page scroll area */
+        #page-content-scroll-area {
+            transform: translate(var(--page-content-scroll-area-scroll-x, 0px), var(--page-content-scroll-area-scroll-y, 0px));
+        }
+
+        /* .card-content already has overflow:hidden and will-change:transform.
+           The transform for card content will be applied by UnifiedReactivityBridge setting
+           element-specific CSS variables like --blog-card-1-content-scroll-y,
+           which will then be used by inline styles or more specific CSS rules if needed.
+           For now, assuming the bridge sets these and they are picked up by element.style.transform
+           or specific CSS rules added later if required for cards.
+        */
+    </style>
 </head>
 <body>
     <!-- STATE INDICATOR -->
@@ -1044,6 +1086,7 @@
     <div class="tesseract-container" id="tesseractContainer">
         <!-- VIB34D HYBRID: Single dynamic face with 8 geometry states -->
         <div class="hypercube-face active-face" id="dynamic-face" data-geometry="hypercube" data-face="0">
+            <div class="scroll-wrapper" id="page-content-scroll-area"> <!-- NEW WRAPPER for page scroll -->
         
         <!-- VISUALIZER BACKGROUND BOARD -->
         <div class="visualizer-board">
@@ -1258,7 +1301,7 @@
             
         </div>
         
-        </div> <!-- Close blogContainer -->
+            </div> <!-- Close scroll-wrapper -->
         </div> <!-- Close dynamic-face -->
     </div> <!-- Close tesseract-container -->
     
@@ -1494,21 +1537,23 @@
                 this.params = { ...this.themeConfigs.hypercube };
                 
                 // ENHANCED INTERACTION STATE SYSTEM  
-                this.mouseX = 0.5;
-                this.mouseY = 0.5;
-                this.mouseIntensity = 0.0;
-                this.clickIntensity = 0.0;
-                this.clickDecay = 0.95;
+                // this.mouseX = 0.5; // Will be driven by params from bridge if needed for direct effects
+                // this.mouseY = 0.5;
+                // this.mouseIntensity = 0.0; // Local mouse intensity, if still needed for very specific shader effects not managed globally
+                // this.clickIntensity = 0.0; // Local click intensity
+                // this.clickDecay = 0.95;
                 
                 // GRID DENSITY CHANGES FOR REAL-TIME REACTIVITY
-                this.baseDensity = 6.0 + Math.random() * 4.0;
-                this.densityVariation = 0.0;
-                this.densityTarget = 0.0;
-                
-                this.currentState = 0;
-                this.targetState = 0;
-                this.transitionProgress = 1.0;
-                this.chaosIntensity = 0.0;
+                this.baseDensity = 6.0 + Math.random() * 4.0; // Retain for themeConfig generation, or make themeConfigs fully static
+                // this.densityVariation = 0.0; // Seems unused now
+                // this.densityTarget = 0.0;  // Seems unused now
+
+                // this.currentState = 0; // Deprecated: Theme/section state managed by HomeMaster
+                // this.targetState = 0;  // Deprecated
+                this.transitionProgress = 1.0; // Still used for theme transitions
+                this.transitionToParams = null; // Will hold target theme parameters during transition
+
+                this.chaosIntensity = 0.0; // Will be set by updateParameters
                 
                 // instanceParams already assigned above - just add missing properties
                 this.gridVibrance = 1.0;
@@ -1521,37 +1566,11 @@
                 this.contentFlowStrength = 0.0;
                 this.textProximity = 0.0;
                 
-                // ENHANCED 4D POLYTOPAL STATE DEFINITIONS
-                this.states = [
-                    { // HOME - HYPERCUBE SOVEREIGNTY
-                        geometry: 0.0, density: this.baseDensity, speed: 0.5,
-                        color: [1.0, 0.0, 1.0], dimension: 3.5,
-                        name: 'HOME', geometryName: 'Hypercube'
-                    },
-                    { // TECH - TETRAHEDRON PRECISION
-                        geometry: 1.0, density: this.baseDensity * 0.7, speed: 0.3,
-                        color: [0.0, 1.0, 1.0], dimension: 3.2,
-                        name: 'TECH', geometryName: 'Tetrahedron'
-                    },
-                    { // MEDIA - SPHERE POTENTIAL
-                        geometry: 2.0, density: this.baseDensity * 1.3, speed: 0.8,
-                        color: [1.0, 1.0, 0.0], dimension: 3.8,
-                        name: 'MEDIA', geometryName: 'Sphere'
-                    },
-                    { // AUDIO - TORUS FLOW
-                        geometry: 3.0, density: this.baseDensity * 0.9, speed: 0.6,
-                        color: [0.0, 1.0, 0.0], dimension: 3.6,
-                        name: 'AUDIO', geometryName: 'Torus'
-                    },
-                    { // QUANTUM - WAVE NEXUS
-                        geometry: 6.0, density: this.baseDensity * 1.5, speed: 0.7,
-                        color: [1.0, 0.0, 0.5], dimension: 3.9,
-                        name: 'QUANTUM', geometryName: 'Wave'
-                    }
-                ];
+                // ENHANCED 4D POLYTOPAL STATE DEFINITIONS (this.states) is now DEPRECATED.
+                // Theme parameters are stored in this.themeConfigs and applied via this.params and this.transitionToParams.
                 
-                this.mouseX = 0.5;
-                this.mouseY = 0.5;
+                // this.mouseX = 0.5; // These are now set by updateParameters if needed for local effects
+                // this.mouseY = 0.5;
                 this.startTime = Date.now();
                 
                 // Automatically determine geometry based on role if it's a hypercube face
@@ -1563,6 +1582,70 @@
                 this.resize();
                 
                 console.log(`✅ ReactiveHyperAVCore initialized (${role}) - Geometry: ${this.currentTheme}`);
+            }
+
+            updateParameters(newParams) {
+                // console.log(`Viz ${this.instanceId || this.role}: updateParameters received`, newParams);
+                if (!newParams) return;
+
+                // Theme/Geometry update
+                if (newParams.geometryThemeName && newParams.geometryThemeName !== this.currentTheme) {
+                    this.setTheme(newParams.geometryThemeName);
+                }
+
+                // Update direct properties used in render loop if they exist in newParams
+                // These were previously read from CSS vars or set by other systems directly.
+                const directParams = [
+                    'gridVibrance', 'sectionFocus', 'portalIntensity',
+                    'microChaos', 'inverseFlow', 'contentGravityX', 'contentGravityY',
+                    'contentFlowStrength', 'textProximity', 'chaosIntensity'
+                    // 'intensity' from instanceParams might be overridden if passed
+                ];
+
+                for (const key of directParams) {
+                    if (newParams.hasOwnProperty(key)) {
+                        this[key] = newParams[key];
+                    }
+                }
+
+                // Parameters that might affect 'this.params' (which are from themeConfigs)
+                // or 'this.instanceParams' (which are from roleParameterMap)
+                // For now, these are primarily set by setTheme and constructor.
+                // If HomeMaster/Bridge are to override these granularly, logic would go here.
+                // Example:
+                if (newParams.hasOwnProperty('baseColor') && this.params) {
+                     this.params.baseColor = newParams.baseColor;
+                }
+                if (newParams.hasOwnProperty('gridDensity') && this.params) {
+                     this.params.gridDensity = newParams.gridDensity; // Overrides theme's gridDensity
+                }
+                 if (newParams.hasOwnProperty('rotationSpeed') && this.params) {
+                     this.params.rotationSpeed = newParams.rotationSpeed;
+                }
+                if (newParams.hasOwnProperty('morphFactor') && this.params) {
+                    this.params.morphFactor = newParams.morphFactor;
+                }
+                if (newParams.hasOwnProperty('dimension') && this.params) {
+                    this.params.dimension = newParams.dimension;
+                }
+
+
+                // Parameters that might affect 'this.instanceParams'
+                // These are usually role-based and set at init. Overriding them here needs care.
+                if (newParams.hasOwnProperty('intensity') && this.instanceParams) { // Accept 'intensity' from bridge
+                    this.instanceParams.intensity = newParams.intensity;
+                } else if (newParams.hasOwnProperty('instanceIntensity') && this.instanceParams) { // Keep support for old name
+                    this.instanceParams.intensity = newParams.instanceIntensity;
+                }
+                 if (newParams.hasOwnProperty('instanceDensityMult') && this.instanceParams) {
+                    this.instanceParams.densityMult = newParams.instanceDensityMult;
+                }
+                if (newParams.hasOwnProperty('instanceSpeedMult') && this.instanceParams) {
+                    this.instanceParams.speedMult = newParams.instanceSpeedMult;
+                }
+                if (newParams.hasOwnProperty('instanceColorShift') && this.instanceParams) { // Renamed to avoid conflict
+                    this.instanceParams.colorShift = newParams.instanceColorShift;
+                }
             }
             
             autoDetectFaceGeometry() {
@@ -1623,66 +1706,133 @@
             }
             
             setupInteractions() {
-                let lastScrollY = window.scrollY;
-                let lastScrollTime = Date.now();
-                
-                // Mouse movement
-                this.canvas.addEventListener('mousemove', (e) => {
+                // Remove direct update of this.interactionState.
+                // Instead, queue events to UnifiedReactivityBridge.
+                // VIB3HomeMaster will process these and update global state.
+                // Effects will flow back via updateParameters().
+
+                const getCoords = (e) => {
                     const rect = this.canvas.getBoundingClientRect();
-                    this.interactionState.mouseX = (e.clientX - rect.left) / rect.width;
-                    this.interactionState.mouseY = 1.0 - (e.clientY - rect.top) / rect.height;
-                    this.interactionState.lastActivity = Date.now();
-                    this.updateInteractionState('move', 0.3);
-                });
-                
-                // Scroll tracking
-                window.addEventListener('scroll', () => {
-                    const currentScrollY = window.scrollY;
-                    const currentTime = Date.now();
-                    const scrollDelta = Math.abs(currentScrollY - lastScrollY);
-                    const timeDelta = currentTime - lastScrollTime;
-                    
-                    this.interactionState.scrollVelocity = timeDelta > 0 ? scrollDelta / timeDelta : 0;
-                    this.interactionState.lastActivity = currentTime;
-                    
-                    this.updateInteractionState('scroll', Math.min(this.interactionState.scrollVelocity * 10, 1.0));
-                    
-                    lastScrollY = currentScrollY;
-                    lastScrollTime = currentTime;
-                });
-                
-                // Click and hold
-                this.canvas.addEventListener('mousedown', (e) => {
-                    this.interactionState.isHolding = true;
-                    this.interactionState.holdStart = Date.now();
-                    this.interactionState.lastActivity = Date.now();
-                    this.updateInteractionState('click', 0.8);
-                });
-                
-                this.canvas.addEventListener('mouseup', () => {
-                    this.interactionState.isHolding = false;
-                    this.interactionState.holdStart = 0;
-                    this.updateInteractionState('release', 0.1);
-                });
-                
-                // Touch support
-                this.canvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    if (touch) {
-                        const rect = this.canvas.getBoundingClientRect();
-                        this.interactionState.mouseX = (touch.clientX - rect.left) / rect.width;
-                        this.interactionState.mouseY = 1.0 - (touch.clientY - rect.top) / rect.height;
-                        this.interactionState.lastActivity = Date.now();
-                        this.updateInteractionState('touch', 0.5);
+                    return {
+                        x: (e.clientX - rect.left) / rect.width,
+                        y: 1.0 - ((e.clientY - rect.top) / rect.height) // Inverted Y for typical shader coords
+                    };
+                };
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'mousemove',
+                            elementId: this.instanceId || this.role, // Use a unique ID
+                            canvasRole: this.role,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            clientX: e.clientX, clientY: e.clientY, // Raw screen coords might also be useful
+                            timestamp: performance.now()
+                        });
                     }
                 });
+                
+                this.canvas.addEventListener('mousedown', (e) => {
+                    if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'mousedown',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            button: e.button,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                });
+                
+                this.canvas.addEventListener('mouseup', (e) => {
+                     if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'mouseup',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            button: e.button,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                });
+
+                this.canvas.addEventListener('click', (e) => { // Added click for distinct click vs mousedown/up
+                     if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'click',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            button: e.button,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                });
+
+                // Touch support - simplified, could be expanded
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // Often needed for touch on canvas
+                    if (e.touches[0] && window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e.touches[0]);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'touchstart',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault(); // Often needed for touch on canvas
+                     if (e.touches[0] && window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        const coords = getCoords(e.touches[0]);
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'touchmove',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            normalizedX: coords.x,
+                            normalizedY: coords.y,
+                            timestamp: performance.now()
+                        });
+                    }
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault(); // Often needed for touch on canvas
+                     if (window.vib3Bridge && window.vib3Bridge.queueEvent) {
+                        // Touchend doesn't have coordinates in e.touches directly in the same way.
+                        // We might need to use changedTouches or rely on last known from touchmove.
+                        // For simplicity, not passing coords for touchend for now, or use last known if stored.
+                        window.vib3Bridge.queueEvent('visualizerInteraction', {
+                            type: 'touchend',
+                            elementId: this.instanceId || this.role,
+                            canvasRole: this.role,
+                            timestamp: performance.now()
+                        });
+                    }
+                }, { passive: false });
+
+                // Removed window scroll listener from here as it's global, not per-visualizer.
+                // Removed updateInteractionState as it's no longer used.
             }
             
-            updateInteractionState(type, intensity) {
-                this.interactionState.type = type;
-                this.interactionState.intensity = Math.max(this.interactionState.intensity, intensity);
-            }
+            // updateInteractionState(type, intensity) { // No longer needed
+            //     this.interactionState.type = type;
+            //     this.interactionState.intensity = Math.max(this.interactionState.intensity, intensity);
+            // }
             
             setTheme(themeName) {
                 if (this.themeConfigs && this.themeConfigs[themeName]) {
@@ -1967,12 +2117,12 @@
                 this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
             }
             
-            snapToState(stateIndex) {
-                if (stateIndex !== this.targetState) {
-                    this.targetState = stateIndex;
-                    this.transitionProgress = 0.0;
-                }
-            }
+            // snapToState(stateIndex) { // Deprecated: setTheme is used now.
+            //     if (stateIndex !== this.targetState) {
+            //         this.targetState = stateIndex;
+            //         this.transitionProgress = 0.0;
+            //     }
+            // }
             
             updateInteraction(mouseX, mouseY) {
                 this.mouseX = mouseX;
@@ -1989,51 +2139,62 @@
                     this.transitionProgress = Math.min(1.0, this.transitionProgress + 0.025);
                 }
                 
-                // Safety check for state bounds
-                const currentStateIndex = Math.max(0, Math.min(this.currentState, this.states.length - 1));
-                const targetStateIndex = Math.max(0, Math.min(this.targetState, this.states.length - 1));
-                
-                const currentState = this.states[currentStateIndex];
-                const targetState = this.states[targetStateIndex];
-                
-                if (!currentState || !targetState) {
-                    console.error('BlogVisualizer: Invalid state indices', { 
-                        currentState: this.currentState, 
-                        targetState: this.targetState, 
-                        statesLength: this.states.length 
-                    });
-                    return;
-                }
-                
-                const t = this.transitionProgress;
-                const smoothT = t * t * (3.0 - 2.0 * t);
-                
-                const interpolated = {
-                    geometry: currentState.geometry + (targetState.geometry - currentState.geometry) * smoothT,
-                    density: currentState.density + (targetState.density - currentState.density) * smoothT,
-                    speed: currentState.speed + (targetState.speed - currentState.speed) * smoothT,
-                    color: [
-                        currentState.color[0] + (targetState.color[0] - currentState.color[0]) * smoothT,
-                        currentState.color[1] + (targetState.color[1] - currentState.color[1]) * smoothT,
-                        currentState.color[2] + (targetState.color[2] - currentState.color[2]) * smoothT
-                    ]
+                // Safety check for state bounds -- DEPRECATED internal state machine
+
+                let paramsForUniforms = { // Start with current theme's base values, mapping names
+                    geometry: this.params.geometry,
+                    density: this.params.gridDensity,
+                    speed: this.params.rotationSpeed,
+                    color: this.params.baseColor,
+                    // Include other params that might be part of the theme and used by shaders directly or indirectly
+                    dimension: this.params.dimension,
+                    morphFactor: this.params.morphFactor,
+                    glitchIntensity: this.params.glitchIntensity
                 };
-                
-                if (this.transitionProgress >= 1.0 && this.currentState !== this.targetState) {
-                    this.currentState = this.targetState;
+
+                if (this.transitionToParams && this.transitionProgress < 1.0) {
+                    const t = this.transitionProgress * this.transitionProgress * (3.0 - 2.0 * this.transitionProgress); // Smoothstep
+
+                    const currentP = this.params; // Parameters of the theme being transitioned FROM
+                    const targetP = this.transitionToParams; // Parameters of the theme being transitioned TO
+
+                    paramsForUniforms = {
+                        geometry: currentP.geometry + (targetP.geometry - currentP.geometry) * t,
+                        density: currentP.gridDensity + (targetP.gridDensity - currentP.gridDensity) * t,
+                        speed: currentP.rotationSpeed + (targetP.rotationSpeed - currentP.rotationSpeed) * t,
+                        color: currentP.baseColor.map((val, i) => val + (targetP.baseColor[i] - val) * t),
+                        dimension: currentP.dimension + (targetP.dimension - currentP.dimension) * t,
+                        morphFactor: currentP.morphFactor + (targetP.morphFactor - currentP.morphFactor) * t,
+                        glitchIntensity: currentP.glitchIntensity + (targetP.glitchIntensity - currentP.glitchIntensity) * t,
+                    };
+                } else if (this.transitionToParams && this.transitionProgress >= 1.0) {
+                    this.params = { ...this.transitionToParams }; // Transition complete, adopt target params fully
+                    this.transitionToParams = null; // Clear target
+                    paramsForUniforms = { // Use final target values, mapping names
+                        geometry: this.params.geometry,
+                        density: this.params.gridDensity,
+                        speed: this.params.rotationSpeed,
+                        color: this.params.baseColor,
+                        dimension: this.params.dimension,
+                        morphFactor: this.params.morphFactor,
+                        glitchIntensity: this.params.glitchIntensity,
+                    };
                 }
+                // If no transition, paramsForUniforms already holds this.params correctly mapped.
                 
                 const time = Date.now() - this.startTime;
                 
                 this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
                 this.gl.uniform1f(this.uniforms.time, time);
-                this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
-                this.gl.uniform1f(this.uniforms.geometry, interpolated.geometry);
-                this.gl.uniform1f(this.uniforms.density, interpolated.density);
-                this.gl.uniform1f(this.uniforms.speed, interpolated.speed);
-                this.gl.uniform3fv(this.uniforms.color, new Float32Array(interpolated.color));
+                this.gl.uniform2f(this.uniforms.mouse, this.mouseX !== undefined ? this.mouseX : 0.5, this.mouseY !== undefined ? this.mouseY : 0.5); // Use internal mouse if set by updateParams, else default
+
+                this.gl.uniform1f(this.uniforms.geometry, paramsForUniforms.geometry);
+                this.gl.uniform1f(this.uniforms.density, paramsForUniforms.density);
+                this.gl.uniform1f(this.uniforms.speed, paramsForUniforms.speed);
+                this.gl.uniform3fv(this.uniforms.color, new Float32Array(paramsForUniforms.color));
+
                 // ENSURE INSTANCEPARAMS EXISTS (should be set in constructor)
-                if (!this.instanceParams) {
+                if (!this.instanceParams) { // This should ideally not happen if constructor is robust
                     this.instanceParams = {
                         intensity: 0.5,
                         densityMult: 1.0,
@@ -2052,38 +2213,21 @@
                 this.gl.uniform1f(this.uniforms.instanceDensity, safeDensityMult);
                 this.gl.uniform1f(this.uniforms.instanceSpeed, safeSpeedMult);
                 this.gl.uniform1f(this.uniforms.colorShift, safeColorShift);
-                this.gl.uniform1f(this.uniforms.chaosIntensity, this.chaosIntensity || 0.0);
-                
-                // Enhanced reactivity uniforms
-                const rootStyle = getComputedStyle(document.documentElement);
-                this.gl.uniform1f(this.uniforms.gridVibrance, 
-                    this.gridVibrance !== undefined ? this.gridVibrance : 
-                    parseFloat(rootStyle.getPropertyValue('--grid-vibrance')) || 1.0);
-                this.gl.uniform1f(this.uniforms.sectionFocus, 
-                    this.sectionFocus !== undefined ? this.sectionFocus : 
-                    parseFloat(rootStyle.getPropertyValue('--section-focus')) || 0.0);
-                this.gl.uniform1f(this.uniforms.portalIntensity, 
-                    this.portalIntensity !== undefined ? this.portalIntensity : 
-                    parseFloat(rootStyle.getPropertyValue('--portal-intensity')) || 0.0);
-                this.gl.uniform1f(this.uniforms.microChaos, 
-                    this.microChaos !== undefined ? this.microChaos : 
-                    parseFloat(rootStyle.getPropertyValue('--micro-chaos')) || 0.0);
-                this.gl.uniform1f(this.uniforms.inverseFlow, 
-                    this.inverseFlow !== undefined ? this.inverseFlow : 
-                    parseFloat(rootStyle.getPropertyValue('--inverse-flow')) || 0.0);
-                
-                // Content guidance uniforms
-                this.gl.uniform2f(this.uniforms.contentGravity, 
-                    this.contentGravityX !== undefined ? this.contentGravityX : 
-                    parseFloat(rootStyle.getPropertyValue('--content-gravity-x')) || 0.5,
-                    this.contentGravityY !== undefined ? this.contentGravityY : 
-                    parseFloat(rootStyle.getPropertyValue('--content-gravity-y')) || 0.5);
-                this.gl.uniform1f(this.uniforms.contentFlowStrength, 
-                    this.contentFlowStrength !== undefined ? this.contentFlowStrength : 
-                    parseFloat(rootStyle.getPropertyValue('--content-flow-strength')) || 0.0);
-                this.gl.uniform1f(this.uniforms.textProximity, 
-                    this.textProximity !== undefined ? this.textProximity : 
-                    parseFloat(rootStyle.getPropertyValue('--text-proximity')) || 0.0);
+                this.gl.uniform1f(this.uniforms.chaosIntensity, this.chaosIntensity !== undefined ? this.chaosIntensity : 0.0);
+
+                // Enhanced reactivity uniforms - Now using internal properties set by updateParameters()
+                this.gl.uniform1f(this.uniforms.gridVibrance, this.gridVibrance !== undefined ? this.gridVibrance : 1.0);
+                this.gl.uniform1f(this.uniforms.sectionFocus, this.sectionFocus !== undefined ? this.sectionFocus : 0.0);
+                this.gl.uniform1f(this.uniforms.portalIntensity, this.portalIntensity !== undefined ? this.portalIntensity : 0.0);
+                this.gl.uniform1f(this.uniforms.microChaos, this.microChaos !== undefined ? this.microChaos : 0.0);
+                this.gl.uniform1f(this.uniforms.inverseFlow, this.inverseFlow !== undefined ? this.inverseFlow : 0.0);
+
+                // Content guidance uniforms - Now using internal properties
+                this.gl.uniform2f(this.uniforms.contentGravity,
+                    this.contentGravityX !== undefined ? this.contentGravityX : 0.5,
+                    this.contentGravityY !== undefined ? this.contentGravityY : 0.5);
+                this.gl.uniform1f(this.uniforms.contentFlowStrength, this.contentFlowStrength !== undefined ? this.contentFlowStrength : 0.0);
+                this.gl.uniform1f(this.uniforms.textProximity, this.textProximity !== undefined ? this.textProximity : 0.0);
                 
                 this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
             }
@@ -2222,7 +2366,7 @@
                 
                 this.setupInteractions();
                 this.setupStateControls();
-                this.setupScrolling();
+                // this.setupScrolling(); // Commented out to disable old scroll logic
                 this.startRenderLoop();
                 this.updateContent();
                 
@@ -2651,6 +2795,10 @@
             }
             
             setupScrolling() {
+                /*  Entire method commented out to disable old scroll logic.
+                    New Universal Click/Drag scrolling will be managed by DragScrollHandler
+                    and VIB3HomeMaster.
+
                 let scrollAccumulation = 0;
                 let scrollPosition = 0;
                 let scrollTimeout;
@@ -2748,6 +2896,7 @@
                     requestAnimationFrame(animateSnapBack);
                 };
             }
+            */ // End of commented out setupScrolling method
             
             triggerStateTransition(newState) {
                 if (newState === this.currentState || this.isTransitioning) return;
@@ -2956,129 +3105,118 @@
                 this.homeMaster = homeMaster;
                 this.reactivityBridge = reactivityBridge;
                 this.tesseractContainer = document.getElementById('tesseractContainer');
-                // Single dynamic face with 8 geometry states
                 this.dynamicFace = document.getElementById('dynamic-face');
+
                 this.geometryStates = ['hypercube', 'tetrahedron', 'wave', 'sphere', 'fractal', 'crystal', 'klein', 'torus'];
-                this.currentGeometry = 0;
-                this.currentFace = 0;
+                this.currentFace = 0; // Default to HOME
+
                 this.isDragging = false;
                 this.startX = 0;
                 this.startY = 0;
                 this.dragVelocity = 0;
                 this.tensionLevel = 0;
                 this.isTransitioning = false;
-                this.springStrength = 0.6; // From editor config
-                this.dragSensitivity = 1.0;
                 this.lastDragTime = 0;
-                this.isScrolling = false;
-                this.scrollMomentum = 0;
-                
-                // Bezel detection zone (configurable via editor)
-                this.bezelWidth = 80;
+                this.isScrolling = false; // Used for drag-as-scroll
+                this.scrollMomentum = 0; // Used for drag-as-scroll
+
+                // These will be loaded from config
+                this.config = {
+                    navigationParameters: {
+                        dragThreshold: { value: 80 },
+                        tensionBuildupRate: { value: 0.02 },
+                        snapStrength: { value: 1.0 },
+                        bezelWidth: { value: 80 },
+                        dragSensitivity: { value: 1.0 },
+                        springStrength: { value: 0.6 },
+                        dragThresholdToSnap: { value: 0.7 }
+                    },
+                    edgeMappings: { // Default mappings, will be overridden by loaded config
+                        left: { homeMasterSectionKey: 4, targetFaceIndexForVisuals: 2 },
+                        right: { homeMasterSectionKey: 1, targetFaceIndexForVisuals: 1 },
+                        up: { homeMasterSectionKey: 0, targetFaceIndexForVisuals: 0 },
+                        down: { homeMasterSectionKey: 5, targetFaceIndexForVisuals: 5 }
+                    }
+                };
                 
                 this.init();
+            }
+
+            loadConfig() {
+                if (this.homeMaster && this.homeMaster.editorConfig && this.homeMaster.editorConfig.navigationConfig) {
+                    const navConfig = this.homeMaster.editorConfig.navigationConfig;
+                    if (navConfig.navigationParameters) {
+                        for (const key in navConfig.navigationParameters) {
+                            if (this.config.navigationParameters[key] && navConfig.navigationParameters[key].hasOwnProperty('value')) {
+                                this.config.navigationParameters[key].value = navConfig.navigationParameters[key].value;
+                            }
+                        }
+                    }
+                    if (navConfig.edgeMappings) {
+                        this.config.edgeMappings = navConfig.edgeMappings;
+                    }
+                    console.log('🎲 DualNavigationSystem: Loaded navigation config from HomeMaster:', this.config);
+                } else {
+                    console.warn('🎲 DualNavigationSystem: Navigation config not found in HomeMaster. Using defaults.');
+                }
+
+                // Update bezel elements based on loaded config
+                this.updateBezelContent();
+            }
+
+            updateBezelContent() {
+                if (!this.config.edgeMappings) return;
+
+                for (const direction in this.config.edgeMappings) {
+                    const mapping = this.config.edgeMappings[direction];
+                    const bezelElement = document.querySelector(`.nav-bezel-${direction}`);
+                    if (bezelElement) {
+                        const titleEl = bezelElement.querySelector('.bezel-title');
+                        const subtitleEl = bezelElement.querySelector('.bezel-subtitle');
+                        if (titleEl && mapping.bezelTitle) titleEl.textContent = mapping.bezelTitle.toUpperCase();
+                        if (subtitleEl && mapping.bezelSubtitle) subtitleEl.textContent = mapping.bezelSubtitle;
+                        // Color can be applied if needed, e.g., bezelElement.style.setProperty('--bezel-color', mapping.color);
+                    }
+                }
             }
             
             init() {
                 console.log('🎲 Dual Navigation System initializing...');
-                
-                // CLICK/DRAG SUPPLEMENT TO SCROLL (not replacement)
+                this.loadConfig(); // Load config at initialization
+
                 this.tesseractContainer.addEventListener('mousedown', (e) => this.startDrag(e), { passive: false });
                 document.addEventListener('mousemove', (e) => this.handleDrag(e), { passive: false });
                 document.addEventListener('mouseup', () => this.endDrag(), { passive: false });
                 
-                // Touch drag events for mobile
                 this.tesseractContainer.addEventListener('touchstart', (e) => this.startDrag(e.touches[0]), { passive: false });
                 document.addEventListener('touchmove', (e) => this.handleDrag(e.touches[0]), { passive: false });
                 document.addEventListener('touchend', () => this.endDrag(), { passive: false });
                 
-                // REMOVED: Wheel scrolling - let main scroll system handle this
-                // this.tesseractContainer.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
-                
-                // Keyboard navigation
                 document.addEventListener('keydown', (e) => this.handleKeyboard(e));
                 
                 console.log('✅ Dual Navigation System ready - Tesseract folding + Scroll mechanics');
             }
             
-            // 🆕 CONTENT SWITCHING SYSTEM - Maintains VIB34D Architecture
             updateDynamicFaceContent(faceIndex) {
-                const geometryName = this.geometryStates[faceIndex];
-                const dynamicFace = this.dynamicFace;
-                
-                if (!dynamicFace) {
-                    console.warn('Dynamic face not found');
-                    return;
-                }
-                
-                console.log(`🔄 DYNAMIC CONTENT: Switching to ${geometryName} (face ${faceIndex})`);
-                
-                // 1. Update face data attributes for CSS targeting
-                dynamicFace.setAttribute('data-geometry', geometryName);
-                dynamicFace.setAttribute('data-face', faceIndex);
-                
-                // 2. Get content template for this geometry
-                const template = document.getElementById(`template-${geometryName}`);
-                if (template) {
-                    // 3. Update card content with geometry-specific content
-                    this.updateCardContent(template);
-                }
-                
-                // 4. Update CSS class for layout targeting
-                const blogContainer = document.getElementById('blogContainer');
-                if (blogContainer) {
-                    blogContainer.className = `blog-container layout-${geometryName}`;
-                }
-                
-                // 5. Trigger VIB34D geometry state change
-                this.triggerVIB34DGeometryChange(geometryName, faceIndex);
+                // THIS METHOD IS NOW DEPRECATED.
+                // The UnifiedReactivityBridge will handle DOM updates based on HomeMaster state.
+                console.log(`DualNavigationSystem.updateDynamicFaceContent for faceIndex ${faceIndex} is DEPRECATED. Bridge handles this.`);
             }
             
             updateCardContent(template) {
-                // Update all cards with content from template
-                const cards = document.querySelectorAll('.blog-card .card-content');
-                cards.forEach((cardContent, index) => {
-                    if (index === 0) { // Header card
-                        const titleEl = cardContent.querySelector('.card-title, .blog-title');
-                        const subtitleEl = cardContent.querySelector('.card-subtitle, .card-subtitle');
-                        
-                        if (titleEl) titleEl.textContent = template.querySelector('.card-title')?.textContent || 'VIB3CODE';
-                        if (subtitleEl) subtitleEl.textContent = template.querySelector('.card-subtitle')?.textContent || 'Emergent Interface';
-                    } else if (index === 1) { // Main content card
-                        const contentEl = cardContent.querySelector('.article-content');
-                        if (contentEl) contentEl.textContent = template.querySelector('.article-content')?.textContent || 'Advanced Systems';
-                    }
-                });
+                // THIS METHOD IS NOW DEPRECATED.
+                // The UnifiedReactivityBridge will handle DOM updates based on HomeMaster state.
+                 console.log(`DualNavigationSystem.updateCardContent is DEPRECATED. Bridge handles this.`);
             }
             
             triggerVIB34DGeometryChange(geometryName, faceIndex) {
-                // Maintain full VIB34D parameter system integration
-                console.log(`🎨 VIB34D GEOMETRY: ${geometryName} (face ${faceIndex})`);
-                
-                // Update VIB34D geometry parameters for all visualizers
-                if (window.morphingBlogSystem && window.morphingBlogSystem.visualizers) {
-                    window.morphingBlogSystem.visualizers.forEach((viz, index) => {
-                        if (viz && viz.setTheme) {
-                            viz.setTheme(geometryName);
-                            console.log(`🎨 Visualizer ${index} → ${geometryName}`);
-                        }
-                    });
-                }
-                
-                // Update VIB34D Real WebGL instances
-                if (window.vib34dRealIntegration && window.vib34dRealIntegration.instances) {
-                    Object.keys(window.vib34dRealIntegration.instances).forEach(canvasId => {
-                        const instance = window.vib34dRealIntegration.instances[canvasId];
-                        if (instance && instance.updateGeometry) {
-                            instance.updateGeometry(geometryName);
-                            console.log(`🔮 WebGL ${canvasId} → ${geometryName}`);
-                        }
-                    });
-                }
+                // THIS METHOD IS NOW DEPRECATED.
+                // The UnifiedReactivityBridge will handle DOM updates based on HomeMaster state.
+                console.log(`DualNavigationSystem.triggerVIB34DGeometryChange for ${geometryName} is DEPRECATED. Bridge handles this.`);
             }
             
             startDrag(e) {
-                if (this.isTransitioning) return;
+                if (this.isTransitioning || !e) return;
                 
                 this.isDragging = true;
                 this.startX = e.clientX !== undefined ? e.clientX : e.pageX;
@@ -3088,437 +3226,278 @@
                 this.lastDragTime = performance.now();
                 this.isScrolling = false;
                 
-                // Check if we're near a bezel for tesseract mode
                 this.isBezelDrag = this.isNearBezel(this.startX, this.startY);
                 
-                // Visual feedback
+                if (this.isBezelDrag && this.homeMaster && this.homeMaster.editorConfig && this.homeMaster.editorConfig.navigationConfig) {
+                     const interactionEvents = this.homeMaster.editorConfig.navigationConfig.interactionEvents;
+                     if (interactionEvents && interactionEvents.dragStart) {
+                        this.homeMaster.registerInteraction(
+                            interactionEvents.dragStart.reaction,
+                            interactionEvents.dragStart.intensity
+                        );
+                     }
+                }
+
                 this.tesseractContainer.style.cursor = 'grabbing';
                 document.body.style.userSelect = 'none';
-                
                 console.log(`🎲 Drag started - Bezel mode: ${this.isBezelDrag}`);
             }
             
             isNearBezel(x, y) {
-                const bezelWidth = 80; // 80px from edges
+                const bezelW = this.config.navigationParameters.bezelWidth.value;
                 const windowWidth = window.innerWidth;
                 const windowHeight = window.innerHeight;
                 
-                return (x < bezelWidth || x > windowWidth - bezelWidth || 
-                        y < bezelWidth || y > windowHeight - bezelWidth);
+                return (x < bezelW || x > windowWidth - bezelW ||
+                        y < bezelW || y > windowHeight - bezelW);
             }
             
             handleDrag(e) {
                 if (!this.isDragging || this.isTransitioning || !e) return;
                 
-                // Safely prevent default if possible
-                if (e.preventDefault && typeof e.preventDefault === 'function') {
-                    e.preventDefault();
-                }
+                if (e.preventDefault && typeof e.preventDefault === 'function') e.preventDefault();
                 
-                // Handle both mouse and touch events
                 const clientX = e.clientX !== undefined ? e.clientX : e.pageX;
                 const clientY = e.clientY !== undefined ? e.clientY : e.pageY;
-                if (!clientX || !clientY) return;
+                if (clientX === undefined || clientY === undefined) return;
                 
                 const currentTime = performance.now();
                 const deltaTime = currentTime - this.lastDragTime;
-                const deltaX = clientX - this.startX;
-                const deltaY = clientY - this.startY;
+                const deltaX = (clientX - this.startX) * this.config.navigationParameters.dragSensitivity.value;
+                const deltaY = (clientY - this.startY) * this.config.navigationParameters.dragSensitivity.value;
                 const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
                 
-                // Calculate velocity for momentum
-                if (deltaTime > 0) {
-                    this.dragVelocity = distance / deltaTime;
-                }
+                if (deltaTime > 0) this.dragVelocity = distance / deltaTime;
                 
                 if (this.isBezelDrag) {
-                    // TESSERACT FOLDING MODE
                     this.handleTesseractDrag(deltaX, deltaY, distance);
                 } else {
-                    // SCROLL MODE  
                     this.handleScrollDrag(deltaX, deltaY);
                 }
-                
                 this.lastDragTime = currentTime;
             }
             
             handleTesseractDrag(deltaX, deltaY, distance) {
-                // Build tension based on drag distance
-                this.tensionLevel = Math.min(distance / 200, 1.0); // Max tension at 200px drag
-                
-                // PROPER ARCHITECTURE: Register interaction with HomeMaster (if available)
+                const dragThreshold = this.config.navigationParameters.dragThreshold.value;
+                this.tensionLevel = Math.min(distance / dragThreshold, 1.0) ; // Tension now reaches 1.0 at threshold
+
+                const foldDirection = this.determineFoldDirection(deltaX, deltaY);
+
                 if (this.homeMaster) {
-                    this.homeMaster.registerInteraction('cubeRotation', this.tensionLevel, 800);
+                    // Register tension with HomeMaster. The specific interaction type 'cubeTension'
+                    // and its effects (like updating masterState.currentDragTension or masterState.isPortalling)
+                    // should be defined in the interaction presets loaded by HomeMaster.
+                    this.homeMaster.registerInteraction('cubeTension', this.tensionLevel, 200); // Duration might be optional or handled by preset
                 }
                 
-                // PROPER ARCHITECTURE: Update via ReactivityBridge (if available)
-                if (this.reactivityBridge) {
-                    this.reactivityBridge.triggerCubeNavigation(
-                        this.determineFoldDirection(deltaX, deltaY), 
-                        this.tensionLevel, 
-                        false
-                    );
-                } else {
-                    // Fallback: Direct CSS update
-                    document.documentElement.style.setProperty('--tension-intensity', this.tensionLevel.toString());
-                }
-                
-                // Add tension visual feedback
-                if (this.tensionLevel > 0.1) {
-                    this.tesseractContainer.classList.add('tension-building');
-                } else {
-                    this.tesseractContainer.classList.remove('tension-building');
-                }
-                
-                // Determine fold direction for visual preparation
-                if (this.tensionLevel > 0.3) {
-                    const direction = this.determineFoldDirection(deltaX, deltaY);
-                    this.prepareFold(direction);
-                }
-                
-                console.log(`🎲 Tesseract Tension: ${this.tensionLevel.toFixed(2)}, ΔX: ${deltaX}, ΔY: ${deltaY}`);
+                // The UnifiedReactivityBridge will react to changes in HomeMaster's state (e.g., currentDragTension)
+                // to apply CSS changes like 'tension-building' class or --cube-tension variable.
+                // Direct DOM manipulation (classList.add/remove) and direct calls to reactivityBridge.triggerCubeNavigation are removed from here.
+
+                console.log(`🎲 Tesseract Tension reported to HomeMaster: ${this.tensionLevel.toFixed(2)} -> ${foldDirection}`);
             }
             
             determineFoldDirection(deltaX, deltaY) {
                 const absX = Math.abs(deltaX);
                 const absY = Math.abs(deltaY);
-                
-                if (absX > absY) {
-                    return deltaX > 0 ? 'right' : 'left';
-                } else {
-                    return deltaY > 0 ? 'down' : 'up';
-                }
+                if (absX > absY) return deltaX > 0 ? 'right' : 'left';
+                return deltaY > 0 ? 'down' : 'up';
             }
             
             handleScrollDrag(deltaX, deltaY) {
-                // DRAG AS SCROLL SUPPLEMENT (works WITH main scroll system)
                 this.isScrolling = true;
-                
-                // Calculate scroll intensity
                 const scrollIntensity = Math.min(Math.abs(deltaY) / 50, 2.0);
-                const scrollVelocity = Math.abs(this.dragVelocity);
                 
-                // INTEGRATE WITH MAIN SCROLL SYSTEM
-                // Simulate scroll wheel events to work with existing scroll logic
-                const scrollEvent = new WheelEvent('wheel', {
-                    deltaY: deltaY * 2, // Amplify drag to scroll conversion
-                    bubbles: true,
-                    cancelable: true
-                });
-                
-                // Dispatch to main scroll system (but don't let it prevent default again)
-                setTimeout(() => {
-                    document.dispatchEvent(scrollEvent);
-                }, 0);
-                
-                // ADDITIONAL DRAG-SPECIFIC VISUAL EFFECTS
-                const allCards = document.querySelectorAll('.blog-card');
-                allCards.forEach((card, index) => {
-                    // Additional drag-specific scaling and rotation
-                    const dragEffect = `scale(${1.0 + scrollIntensity * 0.05}) rotateZ(${deltaX * 0.02}deg)`;
-                    card.style.filter = `brightness(${1.0 + scrollIntensity * 0.2})`;
-                    // Don't override the main scroll transform, just add effects
-                });
-                
-                // PROPER ARCHITECTURE: Register interaction with HomeMaster (if available)
+                // Pass to HomeMaster for generic scroll interaction
                 if (this.homeMaster) {
                     this.homeMaster.updateInteraction('scroll', {
-                        velocity: scrollIntensity,
-                        chaos: scrollVelocity * 0.5
+                        velocity: scrollIntensity, // Keep this for existing scroll effects
+                        rawDeltaY: deltaY, // Pass raw delta for more direct control if needed
+                        chaos: Math.abs(this.dragVelocity) * 0.5
                     });
                 }
-                
-                // PROPER ARCHITECTURE: Sync all layers via ReactivityBridge (if available)
-                if (this.reactivityBridge) {
-                    this.reactivityBridge.syncAllLayers();
-                }
-                
-                console.log(`📜 Drag-as-scroll supplement: ΔX: ${deltaX}, ΔY: ${deltaY}, velocity: ${this.dragVelocity.toFixed(2)}`);
+                 // This will trigger CSS updates via UnifiedReactivityBridge if it's listening to scroll related CSS vars
+                if (this.reactivityBridge) this.reactivityBridge.syncAllLayers();
+
+                console.log(`📜 Drag-as-scroll: ΔY: ${deltaY}, velocity: ${this.dragVelocity.toFixed(2)}`);
             }
             
             prepareFold(direction) {
-                // Remove previous fold classes
                 this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down');
-                
-                // Add new fold direction
                 this.tesseractContainer.classList.add(`folding-${direction}`);
             }
             
             endDrag() {
                 if (!this.isDragging) return;
-                
                 this.isDragging = false;
                 this.tesseractContainer.style.cursor = '';
                 document.body.style.userSelect = '';
-                
+
+                const configuredDragThresholdToSnap = this.config.navigationParameters.dragThresholdToSnap.value;
+
                 if (this.isBezelDrag) {
-                    // TESSERACT MODE: Check if tension is high enough to trigger fold
-                    if (this.tensionLevel > 0.5) {
+                    if (this.tensionLevel >= configuredDragThresholdToSnap) {
                         this.executeFold();
+                         if (this.homeMaster && this.homeMaster.editorConfig && this.homeMaster.editorConfig.navigationConfig) {
+                            const interactionEvents = this.homeMaster.editorConfig.navigationConfig.interactionEvents;
+                             if (interactionEvents && interactionEvents.dragComplete) {
+                                this.homeMaster.registerInteraction(
+                                    interactionEvents.dragComplete.reaction,
+                                    1.0, // Full intensity for completion
+                                    interactionEvents.dragComplete.duration
+                                );
+                             }
+                        }
                     } else {
-                        this.snapBack();
+                        this.snapBackTesseract();
                     }
                     console.log(`🎲 Tesseract drag ended - tension: ${this.tensionLevel.toFixed(2)}`);
-                } else {
-                    // SCROLL MODE: Apply momentum and smooth scrolling
+                } else if (this.isScrolling) {
                     this.applyScrollMomentum();
                     console.log(`📜 Scroll drag ended - velocity: ${this.dragVelocity.toFixed(2)}`);
                 }
+                this.tensionLevel = 0; // Reset local tension state
+
+                // Inform HomeMaster that tension is now zero (or drag ended).
+                // This allows HomeMaster and subsequently the Bridge to reset any tension-related visual effects.
+                // A specific interaction type like 'cubeTensionEnd' or relying on 'cubeTension' with 0 intensity.
+                if (this.homeMaster) {
+                    this.homeMaster.registerInteraction('cubeTension', 0, 0); // Signal end of tension
+                }
+                // CSS classes like 'tension-building' should be managed by the bridge based on homeMaster state.
+                // this.tesseractContainer.classList.remove('tension-building'); // REMOVED
+
             }
             
             applyScrollMomentum() {
-                // Apply momentum based on drag velocity (restored method)
-                if (Math.abs(this.dragVelocity) > 0.5) {
-                    const momentum = this.dragVelocity * -200; // Convert to scroll distance
-                    this.scrollMomentum = momentum;
-                    
-                    // Smooth momentum animation
-                    this.animateScrollMomentum(300, () => {
-                        this.snapToCenter();
-                    });
-                } else {
-                    this.snapToCenter();
+                // Simplified: actual scroll momentum is complex and part of main scroll system.
+                // This just ensures any drag-induced scroll effects are reset.
+                if (this.homeMaster) {
+                    this.homeMaster.updateInteraction('scroll', { velocity: 0, chaos: 0 });
                 }
+                if (this.reactivityBridge) this.reactivityBridge.syncAllLayers();
+                this.isScrolling = false;
             }
-            
-            animateScrollMomentum(duration, callback) {
-                const startTime = performance.now();
-                const startMomentum = this.scrollMomentum;
-                
-                const animate = (currentTime) => {
-                    const elapsed = currentTime - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    // Cubic bezier easing for spring-like effect
-                    const easeProgress = 1 - Math.pow(1 - progress, 3);
-                    
-                    this.scrollMomentum = startMomentum * (1 - easeProgress);
-                    
-                    // Apply visual momentum effects
-                    const momentumIntensity = Math.abs(this.scrollMomentum) / 200;
-                    document.documentElement.style.setProperty('--scroll-momentum', momentumIntensity.toString());
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    } else if (callback) {
-                        callback();
+
+            snapBackTesseract() {
+                // CSS classes 'tension-building', 'folding-left', etc., should be managed by the bridge
+                // based on homeMaster state. This method might become simpler or be removed if
+                // homeMaster state transitions automatically lead to the bridge updating CSS.
+                // For now, ensure homeMaster knows the fold was aborted.
+                if (this.homeMaster) {
+                    // Register an interaction indicating the fold attempt was aborted or snapped back.
+                    // This could be 'cubeSnapBack' or by setting 'cubeTension' to 0 if not already done in endDrag.
+                    this.homeMaster.registerInteraction('cubeSnapBack', 0, 100); // Example interaction
+                    if (this.tensionLevel !== 0) { // Ensure tension is reported as zero if snapback occurs before endDrag fully resets it
+                        this.homeMaster.registerInteraction('cubeTension', 0, 0);
+                        this.tensionLevel = 0;
                     }
-                };
-                
-                requestAnimationFrame(animate);
-            }
-            
-            snapToCenter() {
-                // Smooth return to center position (restored method)
-                const duration = 600 * this.springStrength;
-                
-                this.animateScrollTo(0, duration);
-                
-                console.log(`📍 Snapping to center`);
-            }
-            
-            animateScrollTo(targetValue, duration, callback) {
-                const startTime = performance.now();
-                const startValue = parseFloat(document.documentElement.style.getPropertyValue('--scroll-momentum')) || 0;
-                const distance = targetValue - startValue;
-                
-                const animate = (currentTime) => {
-                    const elapsed = currentTime - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    // Cubic bezier easing for spring-like effect
-                    const easeProgress = 1 - Math.pow(1 - progress, 3);
-                    
-                    const currentValue = startValue + (distance * easeProgress);
-                    document.documentElement.style.setProperty('--scroll-momentum', currentValue.toString());
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    } else if (callback) {
-                        callback();
-                    }
-                };
-                
-                requestAnimationFrame(animate);
+                }
+                console.log('🎲 Tesseract fold attempt snapped back. HomeMaster notified.');
             }
             
             executeFold() {
+                if (this.isTransitioning) return;
                 this.isTransitioning = true;
                 
-                // Determine which face to switch to based on fold direction
-                let targetFace = this.currentFace;
-                
-                if (this.tesseractContainer.classList.contains('folding-right')) {
-                    targetFace = 1; // TECH
-                } else if (this.tesseractContainer.classList.contains('folding-left')) {
-                    targetFace = 3; // MEDIA
-                } else if (this.tesseractContainer.classList.contains('folding-up')) {
-                    targetFace = 4; // INNOVATION
-                } else if (this.tesseractContainer.classList.contains('folding-down')) {
-                    targetFace = 5; // CONTEXT
+                const foldDirection = this.tesseractContainer.classList.contains('folding-right') ? 'right' :
+                                      this.tesseractContainer.classList.contains('folding-left') ? 'left' :
+                                      this.tesseractContainer.classList.contains('folding-up') ? 'up' :
+                                      this.tesseractContainer.classList.contains('folding-down') ? 'down' : null;
+
+                if (!foldDirection || !this.config.edgeMappings[foldDirection]) {
+                    console.warn(`Invalid fold direction or mapping: ${foldDirection}`);
+                    this.isTransitioning = false;
+                    this.snapBackTesseract();
+                    return;
                 }
                 
-                // Execute the hypercube face transition
-                this.transitionToFace(targetFace);
+                const mapping = this.config.edgeMappings[foldDirection];
+                const homeMasterSectionKey = mapping.homeMasterSectionKey;
+                const targetFaceIndexForVisuals = mapping.targetFaceIndexForVisuals; // Use this for local content updates
                 
-                console.log(`🎲 Executing tesseract fold to face ${targetFace}`);
+                console.log(`🎲 Executing tesseract fold to sectionKey ${homeMasterSectionKey} (visuals for face ${targetFaceIndexForVisuals}, direction: ${foldDirection})`);
+                this.transitionToFace(homeMasterSectionKey, targetFaceIndexForVisuals);
             }
             
-            snapBack() {
-                // Remove tension and fold classes
-                this.tesseractContainer.classList.remove('tension-building', 'folding-left', 'folding-right', 'folding-up', 'folding-down');
-                document.documentElement.style.setProperty('--tension-intensity', '0');
-                
-                console.log('🎲 Snapping back to current face');
-            }
-            
-            transitionToFace(faceIndex) {
-                if (faceIndex === this.currentFace) {
-                    this.snapBack();
+            transitionToFace(homeMasterSectionKey, targetFaceIndexForVisuals) {
+                // homeMasterSectionKey is for VIB3HomeMaster
+                // targetFaceIndexForVisuals is for local DOM/CSS updates if they use a different indexing or concept
+
+                if (homeMasterSectionKey === (this.homeMaster ? this.homeMaster.masterState.activeSection : this.currentFace) && !this.isTransitioning) {
+                    this.snapBackTesseract();
                     this.isTransitioning = false;
                     return;
                 }
                 
-                this.currentFace = faceIndex;
-                
-                // Remove all fold classes and set final state
+                // Update internal currentFace concept if it's used elsewhere, perhaps align with targetFaceIndexForVisuals
+                this.currentFace = targetFaceIndexForVisuals; // This might still be useful for local logic if any remains.
+
+                // Primary state change through HomeMaster
+                if (this.homeMaster) {
+                    this.homeMaster.transitionToSection(homeMasterSectionKey);
+                    // Optionally, register a specific interaction for the fold completion itself,
+                    // if defined in interaction presets (e.g., for a sound effect or quick flash).
+                    // This is already handled in endDrag by calling 'dragComplete' interaction.
+                }
+
+                // DOM updates (data-geometry, layout classes, content) are NOW THE RESPONSIBILITY OF UnifiedReactivityBridge
+                // reacting to homeMaster.masterState.activeSection changes.
+                // REMOVED: this.updateDynamicFaceContent(targetFaceIndexForVisuals);
+
+                // Visual transition CSS classes ('folding-*', 'tension-building') are also
+                // NOW THE RESPONSIBILITY OF UnifiedReactivityBridge.
+                // The setTimeout for cleanup is also removed as the bridge will manage state.
+
+                // The bridge's syncAllLayers or its reaction to homeMaster state change should handle
+                // updating visualizers and CSS.
+
+                // It's important that homeMaster.transitionToSection effectively signals the bridge.
+                // This might happen if the bridge polls homeMaster state or if homeMaster notifies the bridge.
+
+                // For now, we assume the transition takes roughly the same time.
+                // The isTransitioning flag prevents further input during this period.
                 setTimeout(() => {
-                    this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down', 'tension-building');
-                    document.documentElement.style.setProperty('--tension-intensity', '0');
-                    
-                    // Update dynamic face content and geometry state
-                    this.updateDynamicFaceContent(faceIndex);
-                    
-                    // 🔧 CRITICAL FIX: Update ALL visualizer geometry states for new face
-                    console.log(`🎨 FACE TRANSITION: Updating all visualizers for face ${faceIndex}`);
-                    
-                    // Update main content visualizers
-                    if (window.morphingBlogSystem && window.morphingBlogSystem.visualizers) {
-                        window.morphingBlogSystem.visualizers.forEach((viz, index) => {
-                            if (viz && viz.setTheme) {
-                                // Map face to geometry
-                                const faceGeometries = {
-                                    0: 'hypercube',    // HOME
-                                    1: 'tetrahedron',  // TECH  
-                                    2: 'wave',         // RESEARCH
-                                    3: 'sphere',       // MEDIA
-                                    4: 'fractal',      // INNOVATION
-                                    5: 'crystal',      // CONTEXT
-                                    6: 'klein',        // TORUS
-                                    7: 'torus'         // KLEIN
-                                };
-                                
-                                const newGeometry = faceGeometries[faceIndex] || 'hypercube';
-                                viz.setTheme(newGeometry);
-                                console.log(`🎨 Visualizer ${index} (${viz.canvasId}) → ${newGeometry}`);
-                            }
-                        });
-                    }
-                    
-                    // Update VIB34D Real WebGL visualizers
-                    if (window.vib34dRealIntegration && window.vib34dRealIntegration.instances) {
-                        Object.keys(window.vib34dRealIntegration.instances).forEach(canvasId => {
-                            const instance = window.vib34dRealIntegration.instances[canvasId];
-                            if (instance && instance.updateGeometry) {
-                                const faceGeometries = {
-                                    0: 'hypercube', 1: 'tetrahedron', 2: 'wave', 3: 'sphere',
-                                    4: 'fractal', 5: 'crystal', 6: 'klein', 7: 'torus'
-                                };
-                                const newGeometry = faceGeometries[faceIndex] || 'hypercube';
-                                instance.updateGeometry(newGeometry);
-                                console.log(`🔮 WebGL ${canvasId} → ${newGeometry}`);
-                            }
-                        });
-                    }
-                    
                     this.isTransitioning = false;
-                    console.log(`🎲 Tesseract folded to face ${faceIndex}`);
-                }, 800);
-            }
-            
-            handleWheel(e) {
-                e.preventDefault();
-                
-                // Convert wheel delta to scroll effects
-                const sensitivity = 2.0;
-                const scrollAmount = e.deltaY * sensitivity;
-                
-                // Apply visual wheel scrolling effects
-                const scrollIntensity = Math.min(Math.abs(scrollAmount) / 100, 1.0);
-                document.documentElement.style.setProperty('--scroll-momentum', scrollIntensity.toString());
-                
-                // Auto-decay after wheel scrolling stops
-                clearTimeout(this.wheelTimeout);
-                this.wheelTimeout = setTimeout(() => {
-                    this.snapToCenter();
-                }, 150);
-                
-                console.log(`🎡 Wheel scroll: ${scrollAmount}, intensity: ${scrollIntensity.toFixed(2)}`);
+                    // No longer need to remove CSS classes here or call syncAllLayers directly,
+                    // as the bridge should manage the visual state based on homeMaster.
+                    console.log(`🎲 Tesseract fold initiated to sectionKey ${homeMasterSectionKey}. Visuals managed by Bridge. HomeMaster activeSection: ${this.homeMaster ? this.homeMaster.masterState.activeSection : 'N/A'}`);
+                }, 800); // Keep timeout for isTransitioning flag, aligned with expected CSS animation time.
             }
             
             handleKeyboard(e) {
-                if (this.isTransitioning) return;
-                
+                if (this.isTransitioning || !this.config.edgeMappings) return;
+                let mapping = null;
+
                 switch(e.key) {
-                    case 'ArrowLeft':
+                    case 'ArrowLeft': e.preventDefault(); mapping = this.config.edgeMappings.left; break;
+                    case 'ArrowRight': e.preventDefault(); mapping = this.config.edgeMappings.right; break;
+                    case 'ArrowUp': e.preventDefault(); mapping = this.config.edgeMappings.up; break;
+                    case 'ArrowDown': e.preventDefault(); mapping = this.config.edgeMappings.down; break;
+                    case 'Home': case 'Escape':
                         e.preventDefault();
-                        this.transitionToFace(3); // MEDIA (LEFT)
+                        mapping = this.config.edgeMappings.up; // Assuming 'up' is HOME
+                        if (!mapping) mapping = { homeMasterSectionKey: 0, targetFaceIndexForVisuals: 0}; // Fallback
                         break;
-                    case 'ArrowRight':
-                        e.preventDefault();
-                        this.transitionToFace(1); // TECH (RIGHT)
-                        break;
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        this.transitionToFace(4); // INNOVATION (TOP)
-                        break;
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        this.transitionToFace(5); // CONTEXT (BOTTOM)
-                        break;
-                    case 'Home':
-                        e.preventDefault();
-                        this.transitionToFace(0); // HOME
-                        break;
-                    case 'Escape':
-                        e.preventDefault();
-                        this.transitionToFace(0); // HOME
-                        break;
+                }
+
+                if (mapping && mapping.homeMasterSectionKey !== undefined) {
+                    console.log(`⌨️ Keyboard navigation to sectionKey ${mapping.homeMasterSectionKey} (visuals for face ${mapping.targetFaceIndexForVisuals})`);
+                    this.isTransitioning = true;
+                    this.transitionToFace(mapping.homeMasterSectionKey, mapping.targetFaceIndexForVisuals);
                 }
             }
             
-            // Integration with editor dashboard
+            // Method for editor to update parameters (simplified)
             updateFromEditor(parameter, value) {
-                switch(parameter) {
-                    case 'springReturn':
-                        this.springStrength = value;
-                        break;
-                    case 'tensionThreshold':
-                        this.tensionThreshold = value;
-                        break;
-                    case 'dragSensitivity':
-                        this.dragSensitivity = value;
-                        break;
+                if (this.config.navigationParameters[parameter]) {
+                    this.config.navigationParameters[parameter].value = value;
+                    console.log(`🔧 Editor update: ${parameter} = ${value}`);
                 }
-            }
-            
-            getCurrentFace() {
-                return this.currentFace;
-            }
-            
-            getCurrentSection() {
-                return this.currentFace; // For compatibility
-            }
-            
-            getFaceName() {
-                const faceNames = ['HOME', 'TECH', 'RESEARCH', 'MEDIA', 'INNOVATION', 'CONTEXT'];
-                return faceNames[this.currentFace] || 'UNKNOWN';
-            }
-            
-            scrollToSection(sectionIndex) {
-                // For compatibility - convert to face transition
-                if (sectionIndex >= 0 && sectionIndex < this.faces.length) {
-                    this.transitionToFace(sectionIndex);
+                 // If mappings change, update bezels
+                if (parameter === 'edgeMappings') {
+                    this.config.edgeMappings = value;
+                    this.updateBezelContent();
                 }
             }
         }
@@ -3594,6 +3573,38 @@
                 const basicNavSystem = new DualNavigationSystem(null, null);
                 window.dualNavigationSystem = basicNavSystem;
             }
+
+            // Initialize DragScrollHandlers after core systems are ready
+            const homeMasterInstance = window.vib3HomeMaster;
+            if (homeMasterInstance && typeof DragScrollHandler === 'function') {
+                // 1. Page Scroll
+                const pageScrollArea = document.getElementById('page-content-scroll-area');
+                if (pageScrollArea) {
+                    new DragScrollHandler(pageScrollArea, homeMasterInstance, 'page-content-scroll-area', 'pageScroll');
+                    // The CSS for #page-content-scroll-area already applies the transform with these vars.
+                    console.log('🖱️ DragScrollHandler initialized for page-content-scroll-area (profile: pageScroll).');
+                } else {
+                    console.warn('#page-content-scroll-area not found for DragScrollHandler.');
+                }
+
+                // 2. Card Content Scroll
+                document.querySelectorAll('.blog-card').forEach(card => {
+                    const cardContent = card.querySelector('.card-content');
+                    const cardId = card.id; // e.g., "blog-card-1"
+                    if (cardContent && cardId) {
+                        const elementId = cardId + "-content"; // e.g., "blog-card-1-content"
+                        new DragScrollHandler(cardContent, homeMasterInstance, elementId, 'cardContentScroll');
+                        // Dynamically set the transform style for this specific card content element
+                        // to use its unique CSS variables that the bridge will update.
+                        cardContent.style.transform = `translate(var(--${elementId}-scroll-x, 0px), var(--${elementId}-scroll-y, 0px))`;
+                        console.log(`🖱️ DragScrollHandler initialized for ${elementId} (profile: cardContentScroll).`);
+                    }
+                });
+            } else {
+                if (!homeMasterInstance) console.error('VIB3HomeMaster instance (window.vib3HomeMaster) not found. DragScrollHandlers not initialized.');
+                if (typeof DragScrollHandler !== 'function') console.error('DragScrollHandler class not found. DragScrollHandlers not initialized.');
+            }
+
         });
         
     </script>
