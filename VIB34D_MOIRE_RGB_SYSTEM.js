@@ -796,3 +796,10 @@ if (typeof module !== 'undefined' && module.exports) {
         VIB34DMoireRGBTester
     };
 }
+
+// 🌐 Export to window for browser use
+if (typeof window !== 'undefined') {
+    window.VIB34DMoireRGBEngine = VIB34DMoireRGBEngine;
+    window.VIB34DMoireRGBTester = VIB34DMoireRGBTester;
+    console.log('🌈 VIB34D Moiré RGB System loaded and exported to window');
+}

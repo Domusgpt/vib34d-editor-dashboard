@@ -3612,8 +3612,20 @@
     <script src="VIB34D_MOIRE_RGB_SYSTEM.js"></script>
     <script src="VIB34D_ENHANCED_MOIRE_INTEGRATION.js"></script>
     <script src="VIB34D_EMERGING_BUTTON_SYSTEM.js"></script>
+    <script src="VIB34D_ADAPTIVE_CARD_VISUALIZER.js"></script>
+    <script src="VIB34D_ADAPTIVE_INTEGRATION.js"></script>
     
     <!-- INTEGRATION INJECT (BACKUP) -->
     <script src="VIB34D_BLOG_INTEGRATION_INJECT.js?v=4"></script>
+    
+    <!-- ENHANCED ADAPTIVE INTEGRATION - Updated with better detection -->
+    <script>
+        console.log('🎯 Blog page loaded - AdaptiveCardVisualizer integration should begin shortly...');
+        console.log('🔍 Available integration systems:', {
+            'ADAPTIVE_INTEGRATION': !!document.querySelector('script[src*="ADAPTIVE_INTEGRATION"]'),
+            'ADAPTIVE_CARD_VISUALIZER': !!document.querySelector('script[src*="ADAPTIVE_CARD_VISUALIZER"]'),
+            'Integration ready': document.readyState
+        });
+    </script>
 </body>
 </html>
