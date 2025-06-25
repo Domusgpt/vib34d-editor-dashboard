@@ -229,14 +229,14 @@
         "phases": [
           {
             "name": "phase1_Impact",
-            "targetEffect": { "parameterToChange": "densityMultiplier", "value": 2.0, "operation": "multiplyBase" },
-            "observerEffect": { "parameterToChange": "densityMultiplier", "value": 0.5, "operation": "multiplyBase" },
+            "targetEffect": { "parameterToChange": "densityMultiplier", "value": 2.0, "operation": "set" },
+            "observerEffect": { "parameterToChange": "densityMultiplier", "value": 0.5, "operation": "set" },
             "animation": { "duration": 200, "easingFunction": "ease-in" }
           },
           {
             "name": "phase2_Normalization",
-            "targetEffect": { "parameterToChange": "densityMultiplier", "value": 1.0, "operation": "multiplyBase" },
-            "observerEffect": { "parameterToChange": "densityMultiplier", "value": 1.0, "operation": "multiplyBase" },
+            "targetEffect": { "parameterToChange": "densityMultiplier", "value": 1.0, "operation": "set" },
+            "observerEffect": { "parameterToChange": "densityMultiplier", "value": 1.0, "operation": "set" },
             "animation": { "duration": 400, "easingFunction": "ease-out", "delay": 50 }
           }
         ]
