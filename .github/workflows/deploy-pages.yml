@@ -1,0 +1,35 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Or your default branch like master
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Updated to v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4 # Updated to v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3 # Updated to v3
+        with:
+          # Upload everything from the root directory.
+          # If your site is in a subfolder (e.g., 'dist', 'public', 'site'), change './' to './your-folder-name'
+          path: './'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # Updated to v4
