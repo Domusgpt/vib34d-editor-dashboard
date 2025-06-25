@@ -37,33 +37,43 @@
       "value": 0.6,
       "min": 0.1,
       "max": 1.0
+    },
+    "dragThresholdToSnap": {
+      "description": "Minimum tension level (0.0-1.0) required at the end of a drag to trigger a fold/snap action.",
+      "value": 0.7,
+      "min": 0.3,
+      "max": 1.0
     }
   },
   "edgeMappings": {
     "left": {
       "targetSectionName": "RESEARCH",
-      "targetFaceIndex": 2,
+      "homeMasterSectionKey": 4,
+      "targetFaceIndexForVisuals": 2,
       "bezelTitle": "RESEARCH",
       "bezelSubtitle": "Wave Patterns",
       "color": "rgba(255, 0, 127, 0.15)"
     },
     "right": {
       "targetSectionName": "TECH",
-      "targetFaceIndex": 1,
+      "homeMasterSectionKey": 1,
+      "targetFaceIndexForVisuals": 1,
       "bezelTitle": "TECH",
       "bezelSubtitle": "Documentation",
       "color": "rgba(0, 255, 255, 0.15)"
     },
     "up": {
       "targetSectionName": "HOME",
-      "targetFaceIndex": 0,
+      "homeMasterSectionKey": 0,
+      "targetFaceIndexForVisuals": 0,
       "bezelTitle": "HOME",
       "bezelSubtitle": "Hypercube Grid",
       "color": "rgba(255, 255, 0, 0.15)"
     },
     "down": {
       "targetSectionName": "CONTEXT",
-      "targetFaceIndex": 5,
+      "homeMasterSectionKey": 5,
+      "targetFaceIndexForVisuals": 5,
       "bezelTitle": "CONTEXT",
       "bezelSubtitle": "Settings",
       "color": "rgba(127, 255, 0, 0.15)"

@@ -2979,13 +2979,14 @@
                         snapStrength: { value: 1.0 },
                         bezelWidth: { value: 80 },
                         dragSensitivity: { value: 1.0 },
-                        springStrength: { value: 0.6 }
+                        springStrength: { value: 0.6 },
+                        dragThresholdToSnap: { value: 0.7 }
                     },
                     edgeMappings: { // Default mappings, will be overridden by loaded config
-                        left: { targetFaceIndex: 2 },
-                        right: { targetFaceIndex: 1 },
-                        up: { targetFaceIndex: 0 },
-                        down: { targetFaceIndex: 5 }
+                        left: { homeMasterSectionKey: 4, targetFaceIndexForVisuals: 2 },
+                        right: { homeMasterSectionKey: 1, targetFaceIndexForVisuals: 1 },
+                        up: { homeMasterSectionKey: 0, targetFaceIndexForVisuals: 0 },
+                        down: { homeMasterSectionKey: 5, targetFaceIndexForVisuals: 5 }
                     }
                 };
                 
@@ -3075,7 +3076,7 @@
                 
                 // This call should ideally be handled by HomeMaster reacting to section change
                 // For now, keeping direct call to ensure visualizers update
-                this.triggerVIB34DGeometryChange(geometryName, faceIndex);
+                // this.triggerVIB34DGeometryChange(geometryName, faceIndex); // Commented out: Bridge will handle this.
             }
             
             updateCardContent(template) {
@@ -3242,10 +3243,10 @@
                 this.tesseractContainer.style.cursor = '';
                 document.body.style.userSelect = '';
 
-                const dragThresholdToSnap = 0.7; // Configurable: how much tension needed to snap
+                const configuredDragThresholdToSnap = this.config.navigationParameters.dragThresholdToSnap.value;
 
                 if (this.isBezelDrag) {
-                    if (this.tensionLevel >= dragThresholdToSnap) {
+                    if (this.tensionLevel >= configuredDragThresholdToSnap) {
                         this.executeFold();
                          if (this.homeMaster && this.homeMaster.editorConfig && this.homeMaster.editorConfig.navigationConfig) {
                             const interactionEvents = this.homeMaster.editorConfig.navigationConfig.interactionEvents;
@@ -3308,31 +3309,36 @@
                     return;
                 }
                 
-                const targetFace = this.config.edgeMappings[foldDirection].targetFaceIndex;
+                const mapping = this.config.edgeMappings[foldDirection];
+                const homeMasterSectionKey = mapping.homeMasterSectionKey;
+                const targetFaceIndexForVisuals = mapping.targetFaceIndexForVisuals; // Use this for local content updates
                 
-                console.log(`🎲 Executing tesseract fold to face ${targetFace} (direction: ${foldDirection})`);
-                this.transitionToFace(targetFace);
+                console.log(`🎲 Executing tesseract fold to sectionKey ${homeMasterSectionKey} (visuals for face ${targetFaceIndexForVisuals}, direction: ${foldDirection})`);
+                this.transitionToFace(homeMasterSectionKey, targetFaceIndexForVisuals);
             }
             
-            transitionToFace(faceIndex) {
-                if (faceIndex === this.currentFace && !this.isTransitioning) { // Ensure snapBack happens if same face
+            transitionToFace(homeMasterSectionKey, targetFaceIndexForVisuals) {
+                // homeMasterSectionKey is for VIB3HomeMaster
+                // targetFaceIndexForVisuals is for local DOM/CSS updates if they use a different indexing or concept
+
+                if (homeMasterSectionKey === (this.homeMaster ? this.homeMaster.masterState.activeSection : this.currentFace) && !this.isTransitioning) {
                     this.snapBackTesseract();
-                    this.isTransitioning = false; // Ensure flag is reset
+                    this.isTransitioning = false;
                     return;
                 }
                 
-                this.currentFace = faceIndex;
+                // Update internal currentFace concept if it's used elsewhere, perhaps align with targetFaceIndexForVisuals
+                this.currentFace = targetFaceIndexForVisuals;
 
                 // Primary state change through HomeMaster
                 if (this.homeMaster) {
-                    this.homeMaster.transitionToSection(faceIndex); // Assuming faceIndex maps to sectionId
+                    this.homeMaster.transitionToSection(homeMasterSectionKey);
                 }
 
-                // Update local dynamic content (could also be driven by HomeMaster state change)
-                this.updateDynamicFaceContent(faceIndex);
+                // Update local dynamic content using targetFaceIndexForVisuals
+                this.updateDynamicFaceContent(targetFaceIndexForVisuals);
                 
-                // Visual transition (CSS classes will handle animation)
-                // The actual animation is handled by CSS transitions on .hypercube-face transforms
+                // Visual transition (CSS classes will handle animation based on data-face, etc.)
                 // We just need to ensure the correct classes are set for the target state.
                 // The `folding-*` classes are for pre-visualization of the fold.
                 // The final state is achieved by the `active-face` logic and `data-geometry` styles.
@@ -3353,36 +3359,24 @@
             
             handleKeyboard(e) {
                 if (this.isTransitioning || !this.config.edgeMappings) return;
-                let targetFaceIndex = -1;
+                let mapping = null;
 
                 switch(e.key) {
-                    case 'ArrowLeft':
-                        e.preventDefault();
-                        targetFaceIndex = this.config.edgeMappings.left?.targetFaceIndex;
-                        break;
-                    case 'ArrowRight':
-                        e.preventDefault();
-                        targetFaceIndex = this.config.edgeMappings.right?.targetFaceIndex;
-                        break;
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        targetFaceIndex = this.config.edgeMappings.up?.targetFaceIndex;
-                        break;
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        targetFaceIndex = this.config.edgeMappings.down?.targetFaceIndex;
-                        break;
+                    case 'ArrowLeft': e.preventDefault(); mapping = this.config.edgeMappings.left; break;
+                    case 'ArrowRight': e.preventDefault(); mapping = this.config.edgeMappings.right; break;
+                    case 'ArrowUp': e.preventDefault(); mapping = this.config.edgeMappings.up; break;
+                    case 'ArrowDown': e.preventDefault(); mapping = this.config.edgeMappings.down; break;
                     case 'Home': case 'Escape':
                         e.preventDefault();
-                        targetFaceIndex = this.config.edgeMappings.up?.targetFaceIndex; // Assuming 'up' is HOME
-                         if (targetFaceIndex === undefined) targetFaceIndex = 0; // Fallback to 0 if 'up' not mapped
+                        mapping = this.config.edgeMappings.up; // Assuming 'up' is HOME
+                        if (!mapping) mapping = { homeMasterSectionKey: 0, targetFaceIndexForVisuals: 0}; // Fallback
                         break;
                 }
 
-                if (targetFaceIndex !== undefined && targetFaceIndex !== -1) {
-                    console.log(`⌨️ Keyboard navigation to face ${targetFaceIndex}`);
-                    this.isTransitioning = true; // Prevent overlapping transitions
-                    this.transitionToFace(targetFaceIndex);
+                if (mapping && mapping.homeMasterSectionKey !== undefined) {
+                    console.log(`⌨️ Keyboard navigation to sectionKey ${mapping.homeMasterSectionKey} (visuals for face ${mapping.targetFaceIndexForVisuals})`);
+                    this.isTransitioning = true;
+                    this.transitionToFace(mapping.homeMasterSectionKey, mapping.targetFaceIndexForVisuals);
                 }
             }
             

@@ -164,6 +164,44 @@
           "default": 0.6,
           "label": "Hover Glow Intensity"
         }
+      },
+      "tensionBuild": {
+        "enabled": true,
+        "affectsState": {
+          "parameter": "complexity",
+          "operation": "multiply",
+          "value": 1.1,
+          "duration": 200
+        },
+        "label": "Cube Drag Start Effect",
+        "description": "Visual effect when starting a cube drag."
+      },
+      "cubeTension": {
+        "enabled": true,
+        "affectsState": {
+          "parameter": "currentDragTension",
+          "operation": "set",
+          "valueFromIntensity": true
+        },
+        "label": "Cube Drag Tension Effect",
+        "description": "Visual effect proportional to cube drag tension."
+      },
+      "portalTransitionEffect": {
+        "enabled": true,
+        "affectsState": {
+          "parameter": "intensity",
+          "operation": "set",
+          "value": 1.5,
+          "duration": 800
+        },
+        "secondaryEffect": {
+          "parameter": "complexity",
+          "operation": "multiply",
+          "value": 1.3,
+          "duration": 800
+        },
+        "label": "Cube Fold Transition Effect",
+        "description": "Visual effect when a cube fold transition is committed."
       }
     },
     "visualEffects": {

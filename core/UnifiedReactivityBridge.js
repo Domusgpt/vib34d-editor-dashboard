@@ -659,9 +659,35 @@ class UnifiedReactivityBridge {
         });
         
         // Update WebGL visualizers
+        const currentSectionKey = this.homeMaster?.masterState?.activeSection;
+        let sectionParams = null;
+        let geometryThemeName = null;
+
+        if (currentSectionKey !== undefined && this.homeMaster?.getParametersForSection) {
+            sectionParams = this.homeMaster.getParametersForSection(currentSectionKey);
+            geometryThemeName = sectionParams?.geometryThemeName; // Assumes HomeMaster provides this
+        }
+
+        const webGLGlobalParams = this.getWebGLParameters(); // General reactive parameters
+
         this.visualizers.forEach(viz => {
+            if (!viz) return;
+
+            // Update general reactive parameters
             if (viz.updateParameters) {
-                viz.updateParameters(this.getWebGLParameters());
+                viz.updateParameters(webGLGlobalParams);
+            }
+
+            // Update theme/geometry if it has changed for the section
+            if (geometryThemeName && viz.setTheme && viz.currentTheme !== geometryThemeName) {
+                // Check currentTheme to prevent redundant setTheme calls if possible
+                // Note: viz.currentTheme would need to be exposed or tracked by the bridge if not already.
+                // For now, we assume setTheme handles internal checks or is safe to call.
+                viz.setTheme(geometryThemeName);
+                console.log(`🎨 Bridge updated viz ${viz.instanceId || viz.role || 'unknown'} to theme: ${geometryThemeName}`);
+            } else if (geometryThemeName && viz.setTheme && !viz.hasOwnProperty('currentTheme')) {
+                 // If viz doesn't track currentTheme, call setTheme anyway if geometryThemeName is available
+                viz.setTheme(geometryThemeName);
             }
         });
         

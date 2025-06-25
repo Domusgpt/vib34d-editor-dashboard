@@ -35,59 +35,71 @@ class VIB3HomeMaster {
             transitionProgress: 1.0,
             
             // Editor configuration state
-            editorOverrides: {}
+            editorOverrides: {},
+
+            // Navigation interaction states
+            currentDragTension: 0.0, // Tension for cube drag (0-1)
+            isPortalling: 0.0, // Flag/intensity for portal transition effect
+            navigationEffectTimers: {} // To handle timed effects
         };
         
         // Section Modifiers - Relational mathematical relationships (configurable)
         // Each section's parameters = masterState × sectionModifier
         this.sectionModifiers = {
             0: { // HOME - Hypercube Foundation
-                intensityMod: 1.0,
-                speedMod: 1.0, 
-                densityMod: 1.0,
-                complexityMod: 1.0,
-                geometry: 0.0,
-                baseColor: [1.0, 0.0, 1.0], // Magenta sovereignty
-                name: 'HOME'
+                intensityMod: 1.0, speedMod: 1.0, densityMod: 1.0, complexityMod: 1.0,
+                geometry: 0.0, geometryThemeName: 'hypercube',
+                baseColor: [1.0, 0.0, 1.0], name: 'HOME'
             },
             1: { // TECH - Tetrahedron Precision  
-                intensityMod: 0.8,
-                speedMod: 0.6,
-                densityMod: 0.7,
-                complexityMod: 0.4,
-                geometry: 1.0,
-                baseColor: [0.0, 1.0, 1.0], // Cyan precision
-                name: 'TECH'
+                intensityMod: 0.8, speedMod: 0.6, densityMod: 0.7, complexityMod: 0.4,
+                geometry: 1.0, geometryThemeName: 'tetrahedron',
+                baseColor: [0.0, 1.0, 1.0], name: 'TECH'
             },
-            2: { // MEDIA - Sphere Potential
-                intensityMod: 1.3,
-                speedMod: 1.4,
-                densityMod: 1.2,
-                complexityMod: 1.1,
-                geometry: 2.0,
-                baseColor: [1.0, 1.0, 0.0], // Yellow infinite potential
-                name: 'MEDIA'
+            2: { // MEDIA - Sphere Potential (Note: Research/Wave uses faceIndex 2 in DualNav, section 4 in HomeMaster)
+                 // For now, let's assume direct mapping of section index to these themes for simplicity here.
+                 // DualNav's targetFaceIndex will map to these sectionKeys.
+                intensityMod: 1.3, speedMod: 1.4, densityMod: 1.2, complexityMod: 1.1,
+                geometry: 2.0, geometryThemeName: 'sphere',
+                baseColor: [1.0, 1.0, 0.0], name: 'MEDIA'
             },
             3: { // AUDIO - Torus Flow
-                intensityMod: 0.9,
-                speedMod: 1.1,
-                densityMod: 0.8,
-                complexityMod: 0.9,
-                geometry: 3.0,
-                baseColor: [0.0, 1.0, 0.0], // Green flow
-                name: 'AUDIO'
+                intensityMod: 0.9, speedMod: 1.1, densityMod: 0.8, complexityMod: 0.9,
+                geometry: 3.0, geometryThemeName: 'torus',
+                baseColor: [0.0, 1.0, 0.0], name: 'AUDIO'
             },
-            4: { // QUANTUM - Wave Nexus
-                intensityMod: 1.5,
-                speedMod: 1.2,
-                densityMod: 1.4,
-                complexityMod: 1.3,
-                geometry: 6.0,
-                baseColor: [1.0, 0.0, 0.5], // Pink probability
-                name: 'QUANTUM'
+            4: { // QUANTUM - Wave Nexus (Corresponds to Research, faceIndex 2)
+                intensityMod: 1.5, speedMod: 1.2, densityMod: 1.4, complexityMod: 1.3,
+                geometry: 6.0, geometryThemeName: 'wave',
+                baseColor: [1.0, 0.0, 0.5], name: 'QUANTUM'
+            },
+            // It seems DualNavigationSystem uses faceIndex 5 for CONTEXT (Crystal)
+            // HomeMaster needs a section for this if it's a primary navigable target.
+            // visual-styles.json maps "mandelbulb" to 7.0, but "crystal" is not explicitly ID'd there.
+            // ReactiveHyperAVCore.themeConfigs has 'crystal' with geometry: 7.0
+            // Let's add a section 5 for CONTEXT/Crystal.
+            5: { // CONTEXT - Crystal Lattice (Corresponds to faceIndex 5)
+                intensityMod: 0.9, speedMod: 0.7, densityMod: 1.1, complexityMod: 0.6,
+                geometry: 7.0, geometryThemeName: 'crystal', // Assuming 7.0 is Crystal ID
+                baseColor: [0.0, 0.7, 1.0], name: 'CONTEXT' // Example color
             }
+            // Note: DualNavigationSystem also refers to faceIndex 4 (Innovation/Fractal)
+            // and potentially 6 (Klein), 7 (Torus, different from Audio's Torus unless IDs are shared)
+            // This mapping between DualNav faceIndex and HomeMaster sectionKey needs to be robust.
+            // For now, this covers the primary targets from navigation-config.json:
+            // HOME (0->0), TECH (1->1), RESEARCH (2->4, Wave), CONTEXT (5->5, Crystal)
         };
         
+        // Ensure all section keys used by DualNavigationSystem exist here.
+        // DualNav uses faceIndices: 0 (Home), 1 (Tech), 2 (Research), 5 (Context).
+        // Mapping: DualNav FaceIndex -> HomeMaster Section Key
+        // 0 -> 0 (Home/Hypercube)
+        // 1 -> 1 (Tech/Tetrahedron)
+        // 2 -> 4 (Research/Wave) - Section 4 in HomeMaster is Quantum/Wave
+        // 5 -> 5 (Context/Crystal) - Added Section 5 in HomeMaster for Crystal
+
+        // The `geometryThemeName` should align with keys in `ReactiveHyperAVCore.themeConfigs`
+
         // Instance Role Modifiers - Applied after section calculation
         // These create the multi-layer depth system found in NEOSKEUOMORPHIC_HOLOGRAPHIC_UI
         this.instanceRoles = {
@@ -424,18 +436,105 @@ class VIB3HomeMaster {
     registerInteraction(type, intensity, duration = 1000) {
         const interactionConfig = this.editorConfig?.editorDashboard?.interactionPresets;
         
-        console.log(`🎮 Interaction registered: ${type} (intensity: ${intensity})`);
+        console.log(`🎮 Interaction registered: ${type} (intensity: ${intensity}, duration: ${duration})`);
         
+        const applyEffect = (effectConfig, effectIntensity) => {
+            if (!effectConfig || !effectConfig.enabled || !effectConfig.affectsState) return;
+
+            const stateChange = effectConfig.affectsState;
+            const targetParam = stateChange.parameter;
+            let valueToApply = stateChange.valueFromIntensity ? effectIntensity : stateChange.value;
+
+            if (this.masterState.hasOwnProperty(targetParam)) {
+                switch (stateChange.operation) {
+                    case 'set':
+                        this.masterState[targetParam] = valueToApply;
+                        break;
+                    case 'add':
+                        this.masterState[targetParam] = (this.masterState[targetParam] || 0) + valueToApply;
+                        break;
+                    case 'multiply':
+                        this.masterState[targetParam] = (this.masterState[targetParam] || 1) * valueToApply;
+                        break;
+                    default:
+                        console.warn(`Unknown operation: ${stateChange.operation} for ${type}`);
+                        return;
+                }
+                console.log(`MasterState.${targetParam} updated to ${this.masterState[targetParam]} by ${type}`);
+
+                if (stateChange.duration) {
+                    // Clear any existing timer for this parameter to avoid conflicts
+                    if (this.masterState.navigationEffectTimers[targetParam]) {
+                        clearTimeout(this.masterState.navigationEffectTimers[targetParam]);
+                    }
+                    // Set a timer to revert the effect or decay it
+                    // For simplicity, this example reverts to a baseline or pre-effect state.
+                    // More complex decay logic could be implemented in the main update loop.
+                    const originalValue = targetParam === "intensity" ? (this.masterState.editorOverrides.intensity || 0.8) :
+                                          targetParam === "complexity" ? (this.masterState.editorOverrides.complexity || 0.5) : // Assuming a base complexity
+                                          0; // Default revert value for other params like currentDragTension or isPortalling
+
+                    this.masterState.navigationEffectTimers[targetParam] = setTimeout(() => {
+                        // More sophisticated revert: check if it was additive or multiplicative
+                        if (stateChange.operation === 'add') {
+                             this.masterState[targetParam] -= valueToApply; // Approximate revert
+                        } else if (stateChange.operation === 'multiply') {
+                            this.masterState[targetParam] /= valueToApply; // Approximate revert
+                        } else { // set
+                            this.masterState[targetParam] = originalValue;
+                        }
+                        console.log(`MasterState.${targetParam} reverted after duration for ${type}. New value: ${this.masterState[targetParam]}`);
+                        delete this.masterState.navigationEffectTimers[targetParam];
+                    }, stateChange.duration);
+                }
+            } else {
+                console.warn(`Unknown masterState parameter: ${targetParam} for ${type}`);
+            }
+        };
+
         switch(type) {
-            case 'cubeRotation':
+            case 'cubeRotation': // Existing, potentially keep or integrate with new ones
                 if (interactionConfig?.cubeNavigation?.enabled) {
-                    const config = interactionConfig.cubeNavigation;
-                    const tensionStrength = config.tensionBuildup?.default || 0.02;
-                    this.updateInteraction('mouse', { intensity: intensity * tensionStrength });
+                    // This seems to affect mouseIntensity, which might be fine.
+                    // Or, cubeRotation could have its own entry in interactionPresets.
+                    const config = interactionConfig.cubeNavigation; // This is for nav parameters, not effects.
+                                                                    // Let's assume 'cubeRotation' directly influences a master state like 'rotationSpeedMultiplier'
+                    // this.masterState.rotationSpeedMultiplier = intensity; // Example
+                    console.log("Processing cubeRotation interaction - current logic updates mouseIntensity indirectly.");
+                    // The original logic:
+                     const tensionStrength = interactionConfig.cubeNavigation.tensionBuildup?.default || 0.02;
+                     this.updateInteraction('mouse', { intensity: intensity * tensionStrength });
                 }
                 break;
-                
-            case 'hover':
+
+            case 'tensionBuild': // From navigation-config.json, via DualNavigationSystem
+                if (interactionConfig?.tensionBuild?.enabled) {
+                    applyEffect(interactionConfig.tensionBuild, intensity);
+                    if (interactionConfig.tensionBuild.secondaryEffect) { // Handle secondary effect if defined
+                        applyEffect(interactionConfig.tensionBuild.secondaryEffect, intensity);
+                    }
+                }
+                break;
+
+            case 'cubeTension': // From DualNavigationSystem
+                if (interactionConfig?.cubeTension?.enabled) {
+                    applyEffect(interactionConfig.cubeTension, intensity);
+                     if (interactionConfig.cubeTension.secondaryEffect) {
+                        applyEffect(interactionConfig.cubeTension.secondaryEffect, intensity);
+                    }
+                }
+                break;
+
+            case 'portalTransitionEffect': // From navigation-config.json, via DualNavigationSystem
+                 if (interactionConfig?.portalTransitionEffect?.enabled) {
+                    applyEffect(interactionConfig.portalTransitionEffect, intensity);
+                     if (interactionConfig.portalTransitionEffect.secondaryEffect) {
+                        applyEffect(interactionConfig.portalTransitionEffect.secondaryEffect, intensity);
+                    }
+                }
+                break;
+
+            case 'hover': // Existing
                 if (interactionConfig?.hoverEffects?.enabled) {
                     const config = interactionConfig.hoverEffects;
                     const glowIntensity = config.glowIntensity?.default || 0.6;
@@ -443,13 +542,15 @@ class VIB3HomeMaster {
                 }
                 break;
                 
-            case 'contentGravity':
+            case 'contentGravity': // Existing
                 if (interactionConfig?.contentGravity?.enabled) {
                     const config = interactionConfig.contentGravity;
                     const gravityStrength = config.gravityStrength?.default || 0.3;
-                    this.masterState.editorOverrides.contentGravity = gravityStrength;
+                    this.masterState.editorOverrides.contentGravity = gravityStrength; // This seems like an override, not a temporary effect.
                 }
                 break;
+            default:
+                console.warn(`Unhandled interaction type in registerInteraction: ${type}`);
         }
     }
     
