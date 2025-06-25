@@ -172,6 +172,22 @@
             /* Actual transform will be applied by JS setting these vars, or specific CSS for the ID */
             will-change: transform;
             position: relative; /* Ensure it's a positioning context if children are absolute */
+            filter: blur(var(--page-content-area-blur, 0px)); /* Updated */
+            transition: filter 0.5s ease-in-out;
+        }
+
+        #page-focus-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0,0,0,0.7); /* Default, will be overridden by JS */
+            opacity: 0;
+            display: none;
+            z-index: 900; /* Below focused card (e.g. 1000), above other elements */
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out; /* Base transition */
         }
         
         /* MAIN BLOG CONTAINER */
@@ -234,6 +250,7 @@
             backdrop-filter: blur(var(--self-backdropBlur_px, calc(20px + var(--grid-vibrance) * 10px))) saturate(var(--self-backdropSaturate_percent, calc(180 + var(--grid-vibrance) * 50))%);
             z-index: var(--self-zIndex, 5);
             /* Existing box-shadow and transition should still work fine */
+            will-change: transform, opacity, width, height, top, left, z-index, border-color, box-shadow;
         }
 
         /* SECTION HOVER ENLARGEMENT - REMOVE/COMMENT OUT if fully controlled by JS via CSS Vars */
@@ -1038,6 +1055,58 @@
                 padding: 15px;
             }
         }
+
+        /* Emerging Buttons Styling */
+        .focus-mode-button { /* Base for all focus buttons */
+            padding: 10px 18px;
+            color: var(--text-color-light, #fff);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            box-shadow: 0px 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s ease, transform 0.2s ease, opacity 0.3s ease;
+            opacity: 0; /* Initially hidden, JS controls this */
+            will-change: opacity, transform;
+        }
+
+        .focus-mode-button:hover {
+            transform: scale(1.05);
+        }
+
+        .focusModeFloatingButton {
+            background-color: rgba(40, 40, 60, 0.7);
+            border: 1px solid rgba(0, 255, 255, 0.5);
+        }
+        .focusModeFloatingButton:hover {
+            background-color: rgba(0, 255, 255, 0.3);
+        }
+
+        .focusModeActionButton {
+            background-color: var(--accent-color-interactive, #00AACC);
+        }
+        .focusModeActionButton:hover {
+            background-color: var(--accent-color-strong, #00FFFF);
+        }
+
+        .card-buttons-container {
+            position: absolute;
+            /* bottom, left, transform will be set by JS from preset */
+            display: flex;
+            gap: 10px;
+            z-index: 1001;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .card-buttons-container.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .card-buttons-container button {
+            pointer-events: auto;
+        }
     </style>
     
     <!-- CORE ARCHITECTURE SYSTEMS -->
@@ -1118,6 +1187,7 @@
                     <div class="card-subtitle" id="header-subtitle">Emergent Interface Architecture</div>
                 </div>
             </div>
+            <div class="card-buttons-container" id="blog-card-1-buttons-container"></div>
         </div>
         
         <!-- Card 2: Featured Article -->
@@ -1137,6 +1207,7 @@
                     <span>2025-06-22</span>
                 </div>
             </div>
+            <div class="card-buttons-container" id="blog-card-2-buttons-container"></div>
         </div>
         
         <!-- Card 3: Secondary Content -->
@@ -1154,6 +1225,7 @@
                     <span>2025-06-21</span>
                 </div>
             </div>
+            <div class="card-buttons-container" id="blog-card-3-buttons-container"></div>
         </div>
         
         <!-- Card 4: Sidebar/Navigation -->
@@ -1170,6 +1242,7 @@
                     <p><span class="link-button">→ Community</span></p>
                 </div>
             </div>
+            <div class="card-buttons-container" id="blog-card-4-buttons-container"></div>
         </div>
         
         <!-- Card 5: Article List -->
@@ -1185,6 +1258,7 @@
                     <p><span class="link-button">Torus Flow Patterns</span></p>
                 </div>
             </div>
+            <div class="card-buttons-container" id="blog-card-5-buttons-container"></div>
         </div>
         
         <!-- Card 6: Footer/Meta -->
@@ -1199,6 +1273,7 @@
                     <p>Reactivity: <span class="state-value">Unified</span></p>
                 </div>
             </div>
+            <div class="card-buttons-container" id="blog-card-6-buttons-container"></div>
         </div>
         
             </div> <!-- Close blog-container -->
@@ -3578,6 +3653,9 @@
         });
         
     </script>
+
+    <!-- Page Focus Overlay (for Card Focus Mode) -->
+    <div id="page-focus-overlay"></div>
 
     <!-- VIB34D COMPLETE SYSTEM LOADING -->
     <script src="VIB34D_PHASE1_CORE_ARCHITECTURE.js"></script>

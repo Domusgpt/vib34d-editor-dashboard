@@ -69,7 +69,18 @@ class VIB3HomeMaster {
                 strength: 0.0, // Current animated strength
                 targetStrength: 0.0, // Target strength for animation
                 animation: null // { startTime, duration, easing }
-            }
+            },
+
+            // Card Focus Mode State
+            focusedCardId: null,
+            cardFocusData: {}, // Stores original styles and animation states for cards during focus mode
+                               // cardId: { originalStyle: {}, isFocused, isObserver, animation: {} }
+            focusModeAnimation: { // Primary animation targets for focus mode transitions
+                targetCard: null, // { from:{}, current:{}, target:{}, startTime, duration, easing, onComplete }
+                observerCardsEffect: null, // { from:{}, current:{}, target:{}, startTime, duration, easing }
+                pageOverlay: null, // { fromOpacity, currentOpacity, targetOpacity, backgroundColor, startTime, duration, easing }
+            },
+            emergingButtonsStates: {}, // Keyed by buttonId: { cardId, preset, isVisible, animation: {} }
         };
         
         // Section Modifiers - Relational mathematical relationships (configurable)
@@ -637,6 +648,114 @@ class VIB3HomeMaster {
                     }
                 }
 
+                const now = currentTime; // Consistent time for this frame's updates
+
+                // Process Card Focus Mode Animations
+                if (this.masterState.focusedCardId) {
+                    const anims = this.masterState.focusModeAnimation;
+
+                    // Target Card Animation
+                    if (anims.targetCard && anims.targetCard.startTime > 0) {
+                        const anim = anims.targetCard;
+                        const elapsed = now - anim.startTime;
+                        const progress = Math.min(elapsed / anim.duration, 1.0);
+                        const easedProgress = this._applyEasing(progress, anim.easing);
+
+                        for (const key in anim.target) {
+                            // Ensure 'from' is populated if not already. This is a fallback.
+                            // A more robust solution would capture 'from' values when animation starts.
+                            if (anim.from[key] === undefined) {
+                                anim.from[key] = this.masterState.cardDomEffects[this.masterState.focusedCardId]?.[key]?.current || this._getDefaultDomEffectValue(key, true);
+                            }
+                            const fromVal = anim.from[key];
+                            const targetVal = anim.target[key];
+
+                            if (typeof targetVal === 'number' && typeof fromVal === 'number') {
+                                anim.current[key] = fromVal + (targetVal - fromVal) * easedProgress;
+                            } else { // For string values like 'auto', 'fixed', colors - apply at end or start
+                                anim.current[key] = progress < 0.5 ? fromVal : targetVal;
+                                if (progress === 1.0) anim.current[key] = targetVal;
+                            }
+                        }
+                        if (progress >= 1.0) {
+                            anim.current = { ...anim.target }; // Ensure target is met
+                            anim.startTime = 0; // Mark as complete
+                            if (anim.onComplete) anim.onComplete();
+                        }
+                    }
+
+                    // Observer Cards Animation (applied as a general effect, bridge will filter)
+                    if (anims.observerCardsEffect && anims.observerCardsEffect.startTime > 0) {
+                        const anim = anims.observerCardsEffect;
+                        const elapsed = now - anim.startTime;
+                        const progress = Math.min(elapsed / anim.duration, 1.0);
+                        const easedProgress = this._applyEasing(progress, anim.easing);
+
+                        for (const key in anim.target) {
+                             if (anim.from[key] === undefined) {
+                                anim.from[key] = this._getDefaultDomEffectValue(key, false);
+                            }
+                            const fromVal = anim.from[key];
+                            const targetVal = anim.target[key];
+
+                            if (typeof targetVal === 'number' && typeof fromVal === 'number') {
+                                 anim.current[key] = fromVal + (targetVal - fromVal) * easedProgress;
+                            } else {
+                                anim.current[key] = progress < 0.5 ? fromVal : targetVal;
+                                 if (progress === 1.0) anim.current[key] = targetVal;
+                            }
+                        }
+                        if (progress >= 1.0) {
+                            anim.current = { ...anim.target };
+                            anim.startTime = 0;
+                            if (anim.onComplete) anim.onComplete();
+                        }
+                    }
+
+                    // Page Overlay Animation
+                    if (anims.pageOverlay && anims.pageOverlay.startTime > 0) {
+                        const anim = anims.pageOverlay;
+                        const elapsed = now - anim.startTime;
+                        const progress = Math.min(elapsed / anim.duration, 1.0);
+                        const easedProgress = this._applyEasing(progress, anim.easing);
+
+                        anim.currentOpacity = anim.fromOpacity + (anim.targetOpacity - anim.fromOpacity) * easedProgress;
+
+                        if (progress >= 1.0) {
+                            anim.currentOpacity = anim.targetOpacity;
+                            anim.startTime = 0;
+                            if (anim.onComplete) anim.onComplete();
+                        }
+                    }
+                }
+
+
+                // Process Emerging Buttons Animations
+                for (const buttonId in this.masterState.emergingButtonsStates) {
+                    const btnState = this.masterState.emergingButtonsStates[buttonId];
+                    if (btnState.animation?.opacity && btnState.animation.opacity.startTime > 0 && now >= btnState.animation.opacity.startTime) {
+                        const anim = btnState.animation.opacity;
+                        // Ensure fromValue is set if not already (e.g. if animation started right away without explicit set)
+                        if (anim.fromValue === undefined) anim.fromValue = 0;
+
+                        const elapsed = now - anim.startTime; // startTime already includes delay
+                        const timeSinceAnimStart = Math.max(0, elapsed); // Ensure non-negative for progress calc
+                        const progress = Math.min(timeSinceAnimStart / anim.duration, 1.0);
+                        const easedProgress = this._applyEasing(progress, anim.easing);
+
+                        anim.current = anim.fromValue + (anim.target - anim.fromValue) * easedProgress;
+
+                        if (anim.current > 0.01) btnState.isVisible = true;
+
+                        if (progress >= 1.0) {
+                            anim.current = anim.target;
+                            anim.startTime = 0; // Mark as complete
+                            if (anim.target === 0) btnState.isVisible = false;
+                            if (anim.onComplete) anim.onComplete();
+                        }
+                    }
+                }
+
 
                 this.lastUpdateTime = currentTime;
             }
@@ -1197,6 +1316,19 @@ class VIB3HomeMaster {
         // }
         // For now, only target is animated in this simplified example for click.
         // A full ecosystem click would require iterating all visualizers.
+
+        // Check for focus mode trigger from click preset
+        if (phaseConfig.targetEffect && phaseConfig.targetEffect.activateCardFocus && animationState.visualizerId) {
+            const vizInfo = this.masterState.activeVisualizers[animationState.visualizerId];
+            if (vizInfo && vizInfo.role === 'card') {
+                const cardId = animationState.visualizerId.replace("-visualizer", ""); // Derive cardId
+                if (cardId) {
+                    this._initiateCardFocusMode(cardId);
+                } else {
+                    console.warn("Could not derive cardId for focus mode from visualizer:", animationState.visualizerId);
+                }
+            }
+        }
     }
 
     // Helper for setting card DOM effect targets
@@ -1414,6 +1546,310 @@ class VIB3HomeMaster {
             }
         }
     }
+
+    // --- Card Focus Mode Logic ---
+    _initiateCardFocusMode(cardIdToFocus) {
+        if (this.masterState.focusedCardId === cardIdToFocus && this.masterState.focusModeAnimation.targetCard && this.masterState.focusModeAnimation.targetCard.startTime > 0) {
+             console.log(`Card ${cardIdToFocus} is already focusing.`);
+             return; // Already focusing this card
+        }
+        if (this.masterState.focusedCardId && this.masterState.focusedCardId !== cardIdToFocus) {
+            console.warn(`Another card (${this.masterState.focusedCardId}) is already focused. Exiting that focus first is not yet implemented robustly. New focus will override.`);
+            // Ideally, queue this or complete existing exit animation. For now, direct override.
+            // this._exitCardFocusMode(true); // true to indicate immediate exit for new focus
+        }
+
+        const focusPreset = this.editorConfig?.interactionPresets?.cardFocusMode;
+        if (!focusPreset?.enabled) {
+            console.warn("CardFocusMode preset is not enabled or found.");
+            return;
+        }
+        console.log(`✨ Initiating Card Focus Mode for: ${cardIdToFocus}`);
+        this.masterState.focusedCardId = cardIdToFocus;
+        this.masterState.cardFocusData = {}; // Reset previous focus data, or manage per card if needed
+
+        // 1. Target Card Animation Setup
+        const tcPreset = focusPreset.targetCardAnimation;
+        const currentTargetCardState = this.masterState.focusModeAnimation.targetCard?.current || {};
+        const fromStateTarget = {};
+        for(const key in tcPreset.targetState) {
+            fromStateTarget[key] = currentTargetCardState[key] !== undefined ? currentTargetCardState[key] :
+                                (this.masterState.cardDomEffects[cardIdToFocus]?.[key]?.current || this._getDefaultDomEffectValue(key, true));
+        }
+
+        this.masterState.focusModeAnimation.targetCard = {
+            from: fromStateTarget,
+            current: { ...fromStateTarget }, // Start animation from this state
+            target: { ...tcPreset.targetState },
+            startTime: performance.now(),
+            duration: tcPreset.animation.duration,
+            easing: tcPreset.animation.easingFunction,
+            onComplete: () => {
+                this._showEmergingButtons(cardIdToFocus);
+            }
+        };
+
+        // 2. Observer Cards Animation Setup
+        const obsPreset = focusPreset.observerCardsAnimation;
+        const currentObserverEffectState = this.masterState.focusModeAnimation.observerCardsEffect?.current || {};
+        const fromStateObserver = {};
+         for(const key in obsPreset.targetState) {
+            fromStateObserver[key] = currentObserverEffectState[key] !== undefined ? currentObserverEffectState[key] : this._getDefaultDomEffectValue(key, false);
+        }
+        this.masterState.focusModeAnimation.observerCardsEffect = {
+            from: fromStateObserver,
+            current: { ...fromStateObserver },
+            target: { ...obsPreset.targetState },
+            startTime: performance.now(),
+            duration: obsPreset.animation.duration,
+            easing: obsPreset.animation.easingFunction
+        };
+
+        // 3. Page Overlay Animation Setup
+        const overlayPreset = focusPreset.pageOverlay;
+        if (overlayPreset?.enabled) {
+            const currentOverlayOpacity = this.masterState.focusModeAnimation.pageOverlay?.currentOpacity || 0;
+            this.masterState.focusModeAnimation.pageOverlay = {
+                fromOpacity: currentOverlayOpacity,
+                currentOpacity: currentOverlayOpacity,
+                targetOpacity: this._parseCssColor(overlayPreset.backgroundColor).a,
+                backgroundColor: overlayPreset.backgroundColor,
+                startTime: performance.now(),
+                duration: overlayPreset.animation.duration,
+                easing: overlayPreset.animation.easingFunction
+            };
+        }
+
+        this.masterState.emergingButtonsStates = {}; // Clear/prepare for new buttons
+    }
+
+    _exitCardFocusMode(immediate = false) {
+        if (!this.masterState.focusedCardId) return;
+        console.log(`🚪 Exiting Card Focus Mode for: ${this.masterState.focusedCardId}`);
+
+        const focusPreset = this.editorConfig?.interactionPresets?.cardFocusMode;
+        if (!focusPreset) return;
+
+        const cardIdToExit = this.masterState.focusedCardId;
+
+        this._hideEmergingButtons(cardIdToExit, immediate);
+
+        const tcExitAnimPreset = focusPreset.exitFocus || focusPreset.targetCardAnimation.animation;
+        const defaultTargetState = {};
+        for (const key in focusPreset.targetCardAnimation.targetState) {
+            defaultTargetState[key] = this._getDefaultDomEffectValue(key, true);
+        }
+        // Ensure current state is captured for 'from'
+        const currentTargetCardState = this.masterState.focusModeAnimation.targetCard?.current ||
+                                   this._captureCurrentCardState(cardIdToExit, focusPreset.targetCardAnimation.targetState);
+
+
+        this.masterState.focusModeAnimation.targetCard = {
+            from: { ...currentTargetCardState },
+            current: { ...currentTargetCardState },
+            target: defaultTargetState,
+            startTime: performance.now(),
+            duration: immediate ? 0 : (tcExitAnimPreset.duration || 300),
+            easing: tcExitAnimPreset.easingFunction || 'easeInExpo',
+            onComplete: () => {
+                if (this.masterState.focusedCardId === cardIdToExit) { // Ensure it's still the same focused card exiting
+                    this.masterState.focusedCardId = null;
+                    this.masterState.focusModeAnimation.targetCard = null; // Clear animation object
+                }
+            }
+        };
+        if (immediate) { // Apply end state directly
+             this.masterState.focusModeAnimation.targetCard.current = { ...defaultTargetState };
+             this.masterState.focusModeAnimation.targetCard.startTime = 0;
+             if (this.masterState.focusedCardId === cardIdToExit) {
+                this.masterState.focusedCardId = null;
+                this.masterState.focusModeAnimation.targetCard = null;
+            }
+        }
+
+        const obsExitAnimPreset = focusPreset.exitFocus || focusPreset.observerCardsAnimation.animation;
+        const defaultObserverState = {};
+        for (const key in focusPreset.observerCardsAnimation.targetState) {
+            defaultObserverState[key] = this._getDefaultDomEffectValue(key, false);
+        }
+        const currentObserverState = this.masterState.focusModeAnimation.observerCardsEffect?.current ||
+                                     this._captureCurrentObserverState(focusPreset.observerCardsAnimation.targetState);
+
+        this.masterState.focusModeAnimation.observerCardsEffect = {
+            from: { ...currentObserverState },
+            current: { ...currentObserverState },
+            target: defaultObserverState,
+            startTime: performance.now(),
+            duration: immediate ? 0 : (obsExitAnimPreset.duration || 300),
+            easing: obsExitAnimPreset.easingFunction || 'easeInExpo',
+            onComplete: () => {
+                if (!this.masterState.focusedCardId) { // Only clear if no new focus has started
+                    this.masterState.focusModeAnimation.observerCardsEffect = null;
+                }
+            }
+        };
+         if (immediate) {
+            this.masterState.focusModeAnimation.observerCardsEffect.current = { ...defaultObserverState };
+            this.masterState.focusModeAnimation.observerCardsEffect.startTime = 0;
+            if (!this.masterState.focusedCardId) this.masterState.focusModeAnimation.observerCardsEffect = null;
+        }
+
+        const overlayPreset = focusPreset.pageOverlay;
+        const overlayExitAnimPreset = focusPreset.exitFocus || overlayPreset?.animation;
+        if (overlayPreset?.enabled && this.masterState.focusModeAnimation.pageOverlay && overlayExitAnimPreset) {
+            this.masterState.focusModeAnimation.pageOverlay = {
+                ...this.masterState.focusModeAnimation.pageOverlay,
+                fromOpacity: this.masterState.focusModeAnimation.pageOverlay.currentOpacity,
+                targetOpacity: 0,
+                startTime: performance.now(),
+                duration: immediate ? 0 : (overlayExitAnimPreset.duration || 300),
+                easing: overlayExitAnimPreset.easingFunction || 'easeInExpo',
+                onComplete: () => {
+                     if (!this.masterState.focusedCardId) {
+                        this.masterState.focusModeAnimation.pageOverlay = null;
+                     }
+                }
+            };
+            if (immediate) {
+                this.masterState.focusModeAnimation.pageOverlay.currentOpacity = 0;
+                this.masterState.focusModeAnimation.pageOverlay.startTime = 0;
+                 if (!this.masterState.focusedCardId) this.masterState.focusModeAnimation.pageOverlay = null;
+            }
+        }
+    }
+
+    _captureCurrentCardState(cardId, targetStateKeys) {
+        const capturedState = {};
+        const currentCardEffects = this.masterState.cardDomEffects[cardId] || {};
+        for (const key in targetStateKeys) {
+            capturedState[key] = currentCardEffects[key]?.current !== undefined ?
+                                 currentCardEffects[key]?.current :
+                                 this._getDefaultDomEffectValue(key, true);
+        }
+        return capturedState;
+    }
+    _captureCurrentObserverState(targetStateKeys) {
+        const capturedState = {};
+         for (const key in targetStateKeys) {
+            capturedState[key] = this._getDefaultDomEffectValue(key, false); // Observers are simpler, use general defaults
+        }
+        return capturedState;
+    }
+
+    _getDefaultDomEffectValue(effectName, isTargetCardContext) {
+        // isTargetCardContext: true if for the main focused card (or its non-focused state), false for a generic observer.
+        switch(effectName) {
+            case 'width': return 'auto';
+            case 'height': return 'auto';
+            case 'left': return 'auto';
+            case 'top': return 'auto';
+            case 'position': return 'relative';
+            case 'transform': return 'scale(1)';
+            case 'opacity': return 1.0;
+            case 'zIndex': return isTargetCardContext ? 10 : 5;
+            case 'scale': return 1.0;
+            case 'boxShadow': return isTargetCardContext ? '0px 4px 15px rgba(0,0,0,0.2)' : '0px 2px 5px rgba(0,0,0,0.1)';
+            case 'borderColor': return 'rgba(255, 255, 255, 0.18)';
+            case 'borderHighlightColor': return 'transparent';
+            case 'borderHighlightWidth': return '0px';
+            case 'blur': return '0px'; // Note: CSS blur is filter: blur(), not a direct property. Bridge needs to handle.
+            default: return effectName.includes('Color') ? 'transparent' : (typeof this.masterState.cardDomEffects?.someCardId?.[effectName]?.current === 'number' ? 0 : '');
+        }
+    }
+
+    _showEmergingButtons(cardId) {
+        const focusPreset = this.editorConfig?.interactionPresets?.cardFocusMode;
+        if (!focusPreset?.emergingButtons?.enabled) return;
+
+        // this.masterState.emergingButtonsStates = {}; // Don't clear if we are just adding more
+        focusPreset.emergingButtons.buttons.forEach(buttonPreset => {
+            this.masterState.emergingButtonsStates[buttonPreset.id] = {
+                cardId: cardId,
+                preset: buttonPreset,
+                isVisible: false,
+                animation: {
+                    opacity: {
+                        fromValue: 0, current: 0, target: 1,
+                        startTime: performance.now() + (buttonPreset.animation.delay || 0),
+                        duration: buttonPreset.animation.duration || 300,
+                        easing: buttonPreset.animation.easingFunction || 'easeOutQuad' // Corrected easing access
+                    }
+                }
+            };
+        });
+        // console.log(`Emerging buttons scheduled for ${cardId}`, this.masterState.emergingButtonsStates);
+    }
+
+    _hideEmergingButtons(cardId, immediate = false) {
+        for (const buttonId in this.masterState.emergingButtonsStates) {
+            const btnState = this.masterState.emergingButtonsStates[buttonId];
+            if (btnState.cardId === cardId && btnState.animation.opacity) {
+                btnState.animation.opacity.target = 0;
+                btnState.animation.opacity.fromValue = btnState.animation.opacity.current; // Animate from current opacity
+                btnState.animation.opacity.startTime = performance.now();
+                btnState.animation.opacity.duration = immediate ? 0 : (btnState.preset.animation.duration || 300) / 2;
+
+                const onComplete = () => {
+                    btnState.isVisible = false;
+                    // Optionally remove from emergingButtonsStates once hidden and animation complete
+                    // delete this.masterState.emergingButtonsStates[buttonId];
+                };
+
+                if (immediate) {
+                    btnState.animation.opacity.current = 0;
+                    btnState.animation.opacity.startTime = 0;
+                    onComplete();
+                } else {
+                    btnState.animation.opacity.onComplete = onComplete;
+                }
+            }
+        }
+    }
+
+    handleFocusModeButtonAction(actionData) {
+        console.log("Focus mode button action:", actionData);
+        const { action, cardId, buttonId } = actionData;
+        switch (action) {
+            case 'triggerCloseCardFocusMode': // Matches preset action
+                this._exitCardFocusMode();
+                break;
+            case 'expandCardContent':
+            case 'navigateToProjectUrl':
+                console.log(`Action '${action}' for card '${cardId}' triggered by button '${buttonId}'. Implementation pending.`);
+                break;
+            default:
+                console.warn("Unknown focus mode button action:", action);
+        }
+    }
+
+    _parseCssColor(colorString) {
+        if (typeof colorString !== 'string') return { r:0, g:0, b:0, a:0};
+        const ctx = document.createElement('canvas').getContext('2d');
+        if (!ctx) return { r:0, g:0, b:0, a:0}; // Should not happen in browser
+        ctx.fillStyle = colorString;
+        const colorVal = ctx.fillStyle; // Gets the browser's canonical version (e.g. #RRGGBB or rgba())
+
+        if (colorVal.startsWith('#')) { // Hex color
+            const hex = colorVal.substring(1);
+            const bigint = parseInt(hex, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return { r, g, b, a: 1 }; // Hex is always opaque
+        } else if (colorVal.startsWith('rgb')) { // rgb or rgba
+            const parts = colorVal.match(/[\d.]+/g);
+            if (parts && (parts.length === 3 || parts.length === 4)) {
+                return {
+                    r: parseFloat(parts[0]),
+                    g: parseFloat(parts[1]),
+                    b: parseFloat(parts[2]),
+                    a: parts.length === 4 ? parseFloat(parts[3]) : 1
+                };
+            }
+        }
+        return { r:0, g:0, b:0, a: (colorString === 'transparent' ? 0 : 1) };
+    }
+    // --- End Card Focus Mode Logic ---
 }
 
 export default VIB3HomeMaster;

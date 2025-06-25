@@ -842,11 +842,226 @@ class UnifiedReactivityBridge {
             // However, syncAllLayers is usually called on explicit state changes.
             // For scrolling, which updates frequently via HomeMaster's loop, this direct sync is better.
 
+
+            // --- CARD FOCUS MODE SYNCHRONIZATION ---
+            const { focusedCardId, focusModeAnimation } = ms;
+            const allCards = document.querySelectorAll('.blog-card'); // Consider caching this query if performance is an issue
+
+            // 1. Page Overlay
+            let overlayEl = document.getElementById('page-focus-overlay');
+            if (focusModeAnimation.pageOverlay && focusModeAnimation.pageOverlay.startTime > 0) {
+                if (!overlayEl) {
+                    overlayEl = document.createElement('div');
+                    overlayEl.id = 'page-focus-overlay';
+                    overlayEl.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:900; pointer-events:none;"; // z-index should be below focused card (1000) but above others
+                    document.body.appendChild(overlayEl);
+                }
+                overlayEl.style.opacity = focusModeAnimation.pageOverlay.currentOpacity.toFixed(3);
+                overlayEl.style.backgroundColor = focusModeAnimation.pageOverlay.backgroundColor;
+                overlayEl.style.display = focusModeAnimation.pageOverlay.currentOpacity > 0.001 ? 'block' : 'none';
+
+                const focusPreset = this.homeMaster.editorConfig?.interactionPresets?.cardFocusMode;
+                if (focusPreset?.pageBackgroundEffect?.applyTo) {
+                    const bgEffectTarget = document.querySelector(focusPreset.pageBackgroundEffect.applyTo);
+                    if (bgEffectTarget && focusPreset.pageBackgroundEffect.backdropBlur) {
+                             const blurAmount = focusModeAnimation.pageOverlay.currentOpacity * parseFloat(focusPreset.pageBackgroundEffect.backdropBlur || "0px");
+                             // document.documentElement.style.setProperty('--page-content-area-blur', `${blurAmount}px`); // If using CSS var for blur
+                             bgEffectTarget.style.filter = `blur(${blurAmount}px)`; // Direct blur on target
+                    } else if (bgEffectTarget && parseFloat(document.documentElement.style.getPropertyValue('--page-content-area-blur') || "0px") > 0) {
+                        // bgEffectTarget.style.filter = 'none'; // Clear if no blur specified or opacity is zero
+                        document.documentElement.style.setProperty('--page-content-area-blur', `0px`);
+                    }
+                }
+
+            } else if (overlayEl && (!focusModeAnimation.pageOverlay || focusModeAnimation.pageOverlay.currentOpacity <= 0.001)) {
+                overlayEl.style.display = 'none';
+                const focusPreset = this.homeMaster.editorConfig?.interactionPresets?.cardFocusMode;
+                 if (focusPreset?.pageBackgroundEffect?.applyTo) {
+                    const bgEffectTarget = document.querySelector(focusPreset.pageBackgroundEffect.applyTo);
+                    if (bgEffectTarget) {
+                        // bgEffectTarget.style.filter = 'none';
+                         document.documentElement.style.setProperty('--page-content-area-blur', `0px`);
+                    }
+                 }
+            }
+
+
+            // 2. Focused and Observer Cards
+            allCards.forEach(cardElement => {
+                const cardId = cardElement.id;
+                if (!cardId) return;
+
+                let isCurrentlyFocused = focusedCardId === cardId;
+                let isActiveFocusTarget = isCurrentlyFocused && focusModeAnimation.targetCard && focusModeAnimation.targetCard.startTime > 0;
+                let isActiveFocusObserver = focusedCardId && !isCurrentlyFocused && focusModeAnimation.observerCardsEffect && focusModeAnimation.observerCardsEffect.startTime > 0;
+
+                if (isActiveFocusTarget) {
+                    const styles = focusModeAnimation.targetCard.current;
+                    for (const prop in styles) {
+                        if (styles[prop] !== undefined) {
+                            // Special handling for transform properties if they are individual
+                            if (prop === 'scale') { // Assuming scale is part of transform
+                                cardElement.style.transform = `translate(-50%, -50%) scale(${styles[prop]})`; // Keep centering if it was fixed
+                            } else if (prop === 'borderHighlightColor') {
+                                cardElement.style.borderColor = styles[prop];
+                            } else if (prop === 'borderHighlightWidth') {
+                                cardElement.style.borderWidth = styles[prop];
+                                cardElement.style.borderStyle = parseFloat(styles[prop]) > 0 ? (this.homeMaster.editorConfig?.interactionPresets?.cardFocusMode?.targetCardAnimation?.targetState?.borderStyle || 'solid') : 'none';
+                            } else {
+                                cardElement.style[prop] = typeof styles[prop] === 'number' && !['opacity', 'zIndex', 'scale'].includes(prop) ? `${styles[prop]}px` : styles[prop];
+                            }
+                        }
+                    }
+                } else if (isActiveFocusObserver) {
+                    const styles = focusModeAnimation.observerCardsEffect.current;
+                    let obsTransform = "";
+                    let obsFilter = "";
+                    for (const prop in styles) {
+                        if (styles[prop] !== undefined) {
+                            if (prop === 'scale') {
+                                obsTransform += ` scale(${styles[prop]})`;
+                            } else if (prop === 'opacity') {
+                                cardElement.style.opacity = styles[prop];
+                            } else if (prop === 'blur') {
+                                obsFilter += ` blur(${styles[prop].toString().endsWith('px') ? styles[prop] : styles[prop]+'px'})`;
+                            }
+                        }
+                    }
+                    cardElement.style.transform = obsTransform.trim() || 'none'; // Explicitly set to none if empty
+                    cardElement.style.filter = obsFilter.trim() || 'none';
+                } else { // Not focused, not an observer, or focus ended - should revert to normal state
+                         // This relies on cardDomEffects taking over for normal state styling for opacity/transform/filter.
+                         // Explicitly reset properties unique to focus mode if they persist.
+                    if (cardElement.style.position === 'fixed' && !isActiveFocusTarget) {
+                        const originalCardState = ms.cardFocusData[cardId]?.originalStyle || {};
+                        cardElement.style.position = originalCardState.position || this.homeMaster._getDefaultDomEffectValue('position', true);
+                        cardElement.style.width = originalCardState.width || this.homeMaster._getDefaultDomEffectValue('width', true);
+                        cardElement.style.height = originalCardState.height || this.homeMaster._getDefaultDomEffectValue('height', true);
+                        cardElement.style.left = originalCardState.left || this.homeMaster._getDefaultDomEffectValue('left', true);
+                        cardElement.style.top = originalCardState.top || this.homeMaster._getDefaultDomEffectValue('top', true);
+                        cardElement.style.zIndex = originalCardState.zIndex || this.homeMaster._getDefaultDomEffectValue('zIndex', true);
+                        // cardElement.style.borderColor = originalCardState.borderColor || this.homeMaster._getDefaultDomEffectValue('borderColor', true);
+                        // cardElement.style.borderWidth = originalCardState.borderWidth || this.homeMaster._getDefaultDomEffectValue('borderHighlightWidth', true);
+                        // cardElement.style.borderStyle = parseFloat(cardElement.style.borderWidth) > 0 ? 'solid' : 'none';
+
+                        // If cardDomEffects handles transform/opacity, they will be set by that system.
+                        // If not, ensure they are reset here too.
+                        // cardElement.style.transform = 'scale(1)'; // Or original transform
+                        // cardElement.style.opacity = '1';      // Or original opacity
+                    }
+                     if (cardElement.style.filter.includes('blur') && !isActiveFocusObserver) {
+                         cardElement.style.filter = 'none';
+                     }
+                }
+            });
+
+            // 3. Emerging Buttons
+            let buttonsContainer = focusedCardId ? document.getElementById(`${focusedCardId}-buttons-container`) : null;
+            if (focusedCardId && !buttonsContainer) {
+                 const focusedCardElement = document.getElementById(focusedCardId);
+                 if (focusedCardElement) {
+                    buttonsContainer = document.createElement('div');
+                    buttonsContainer.id = `${focusedCardId}-buttons-container`;
+                    const btnPresetConfig = this.homeMaster.editorConfig?.interactionPresets?.cardFocusMode?.emergingButtons;
+                    if(btnPresetConfig?.containerStyles) {
+                        Object.assign(buttonsContainer.style, btnPresetConfig.containerStyles);
+                    } else { // Fallback basic styling for button container
+                        buttonsContainer.style.position = 'absolute';
+                        buttonsContainer.style.bottom = '20px';
+                        buttonsContainer.style.left = '50%';
+                        buttonsContainer.style.transform = 'translateX(-50%)';
+                        buttonsContainer.style.display = 'flex';
+                        buttonsContainer.style.gap = '10px';
+                        buttonsContainer.style.zIndex = '1001'; // Above focused card
+                    }
+                    focusedCardElement.appendChild(buttonsContainer);
+                 }
+            }
+
+            if (buttonsContainer) {
+                // More efficient button handling: create/remove only when state changes drastically
+                const existingButtonIds = Array.from(buttonsContainer.children).map(btn => btn.id);
+                const requiredButtonIds = Object.values(ms.emergingButtonsStates)
+                                           .filter(bs => bs.cardId === focusedCardId && bs.isVisible)
+                                           .map(bs => bs.preset.id);
+
+                // Remove buttons no longer needed
+                existingButtonIds.forEach(btnId => {
+                    if (!requiredButtonIds.includes(btnId)) {
+                        const btnEl = document.getElementById(btnId);
+                        if (btnEl) btnEl.remove();
+                    }
+                });
+
+                if (ms.emergingButtonsStates) {
+                    Object.values(ms.emergingButtonsStates).forEach(btnState => {
+                        if (btnState.cardId === focusedCardId) { // Process all buttons for the current card, visibility handled by opacity/display
+                            let buttonEl = document.getElementById(btnState.preset.id);
+                            if (btnState.isVisible && !buttonEl) { // Create if visible and not existing
+                                buttonEl = document.createElement('button');
+                                buttonEl.id = btnState.preset.id;
+                                buttonEl.setAttribute('data-no-emergence', 'true'); // Prevent VIB34D Emerging Button System conflict
+                                buttonsContainer.appendChild(buttonEl); // Append early
+
+                                buttonEl.setAttribute('aria-label', btnState.preset.ariaLabel || btnState.preset.text);
+                                if (btnState.preset.iconClass) {
+                                    const icon = document.createElement('i');
+                                    icon.className = btnState.preset.iconClass;
+                                    buttonEl.appendChild(icon);
+                                    if (btnState.preset.text) buttonEl.appendChild(document.createTextNode(' ' + btnState.preset.text));
+                                } else {
+                                    buttonEl.textContent = btnState.preset.text;
+                                }
+
+                                const globalButtonStyles = this.homeMaster.editorConfig?.interactionPresets?.cardFocusMode?.emergingButtons?.buttonStyles;
+                                if (globalButtonStyles) Object.assign(buttonEl.style, globalButtonStyles);
+                                if (btnState.preset.stylePreset) buttonEl.classList.add(btnState.preset.stylePreset); // CSS class based
+                                if (btnState.preset.styles) Object.assign(buttonEl.style, btnState.preset.styles); // Inline override
+                                if (btnState.preset.position) Object.assign(buttonEl.style, btnState.preset.position);
+
+
+                                buttonEl.addEventListener('click', (e) => {
+                                    e.stopPropagation(); // Prevent click from bubbling to card/visualizer
+                                    this.notifyFocusModeButtonAction(btnState.preset.action, btnState.cardId, btnState.preset.id);
+                                });
+                            }
+
+                            if (buttonEl) { // Update existing or newly created button
+                                const opac = btnState.animation?.opacity?.current !== undefined ? btnState.animation.opacity.current.toFixed(3) : (btnState.isVisible ? '1' : '0');
+                                buttonEl.style.opacity = opac;
+                                buttonEl.style.display = (btnState.isVisible && parseFloat(opac) > 0.01) ? (this.homeMaster.editorConfig?.interactionPresets?.cardFocusMode?.emergingButtons?.containerStyles?.display || 'inline-block') : 'none';
+
+                                // Handle other animated properties if any, e.g., transform for slide-in
+                                if(btnState.animation?.transform) {
+                                    buttonEl.style.transform = btnState.animation.transform.current; // Assuming current is a valid CSS transform string
+                                }
+                            }
+                        }
+                    });
+                }
+            } else if (focusedCardId === null && document.getElementById(`${ms.lastFocusedCardId}-buttons-container`)) {
+                // If focus ended, ensure previous card's button container is cleared/hidden.
+                // This requires storing lastFocusedCardId or iterating all potential button containers.
+                // Simpler: if buttonsContainer for a card exists but that card is not focused, clear it.
+                allCards.forEach(card => {
+                    const btnContainer = document.getElementById(`${card.id}-buttons-container`);
+                    if (btnContainer && card.id !== focusedCardId) btnContainer.innerHTML = '';
+                });
+
+            }
+            // --- END CARD FOCUS MODE SYNCHRONIZATION ---
+
             requestAnimationFrame(update);
         };
 
         requestAnimationFrame(update);
-        console.log('🔄 UnifiedReactivityBridge update loop started - Multi-layer synchronization active');
+        // console.log('🔄 UnifiedReactivityBridge update loop started - Multi-layer synchronization active'); // Already logged
+    }
+
+    notifyFocusModeButtonAction(action, cardId, buttonId) {
+        if (this.homeMaster && this.homeMaster.handleFocusModeButtonAction) {
+            this.homeMaster.handleFocusModeButtonAction({ action, cardId, buttonId });
+        }
     }
 
     // Redefined getWebGLParameters to source from HomeMaster
