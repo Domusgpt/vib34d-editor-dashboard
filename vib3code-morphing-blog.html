@@ -221,12 +221,23 @@
                 rgba(0, 0, 0, 0.95) 100%
             );
             transform-style: preserve-3d;
-            transform: scale(calc(1.0 + var(--micro-chaos) * 0.02)) 
-                      rotateX(calc(var(--inverse-flow) * 2deg))
-                      rotateY(calc(var(--inverse-flow) * 1deg));
+            /* Base transform now combines global micro-chaos effects with card-specific scale/translateZ */
+            transform:
+                scale(calc(var(--self-scale, 1.0) + var(--micro-chaos, 0) * 0.02))
+                translateX(var(--self-translateX_px, 0px)) /* Added for potential future use */
+                translateY(var(--self-translateY_px, 0px)) /* Added for potential future use */
+                translateZ(var(--self-translateZ_px, 0px))
+                rotateX(calc(var(--inverse-flow, 0) * 2deg))
+                rotateY(calc(var(--inverse-flow, 0) * 1deg));
+            opacity: var(--self-opacity, 1.0);
+            border-color: var(--self-borderColor, rgba(255, 255, 255, calc(0.18 + var(--global-energy) * 0.3)));
+            backdrop-filter: blur(var(--self-backdropBlur_px, calc(20px + var(--grid-vibrance) * 10px))) saturate(var(--self-backdropSaturate_percent, calc(180 + var(--grid-vibrance) * 50))%);
+            z-index: var(--self-zIndex, 5);
+            /* Existing box-shadow and transition should still work fine */
         }
-        
-        /* SECTION HOVER ENLARGEMENT */
+
+        /* SECTION HOVER ENLARGEMENT - REMOVE/COMMENT OUT if fully controlled by JS via CSS Vars */
+        /*
         .blog-card[data-section-hover="true"] {
             transform: scale(1.08) translateY(-15px) translateZ(30px) 
                       rotateX(5deg) rotateY(2deg);
@@ -240,14 +251,17 @@
             backdrop-filter: blur(30px) saturate(250%);
             z-index: 10;
         }
+        */
         
-        /* INVERSE REACTION FOR NON-FOCUSED CARDS */
+        /* INVERSE REACTION FOR NON-FOCUSED CARDS - REMOVE/COMMENT OUT if fully controlled by JS via CSS Vars */
+        /*
         .blog-card[data-inverse="true"] {
             transform: scale(0.95) translateZ(-10px);
             opacity: 0.7;
             backdrop-filter: blur(15px) saturate(120%);
             border-color: rgba(255, 255, 255, 0.1);
         }
+        */
         
         .blog-card::before {
             content: '';
@@ -354,15 +368,16 @@
         }
         
         .blog-card:hover {
-            transform: translateY(-8px) translateZ(20px) scale(1.02);
-            border-color: rgba(0, 255, 255, 0.4);
+            /* transform: translateY(-8px) translateZ(20px) scale(1.02); */ /* Now controlled by --self-scale, --self-translateY_px, --self-translateZ_px */
+            /* border-color: rgba(0, 255, 255, 0.4); */ /* Now controlled by --self-borderColor */
+            /* Box-shadow can remain a pure CSS hover effect or be simplified for JS control later */
             box-shadow: 
                 0 25px 50px rgba(0, 0, 0, 0.5),
                 0 10px 30px rgba(0, 255, 255, 0.2),
                 0 0 40px rgba(255, 0, 255, 0.15),
                 inset 0 1px 1px rgba(255, 255, 255, 0.3),
                 inset 0 -1px 1px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(25px) saturate(200%);
+            /* backdrop-filter: blur(25px) saturate(200%); */ /* Now controlled by --self-backdropBlur_px & --self-backdropSaturate_percent */
         }
         
         .blog-card:hover::before {
@@ -1555,6 +1570,7 @@
 
                 this.chaosIntensity = 0.0; // Will be set by updateParameters
                 this.densityMultiplier = 1.0; // Default multiplier for ecosystem effects
+                this.overallOpacity = 1.0; // Default for master-controlled opacity
                 
                 // instanceParams already assigned above - just add missing properties
                 this.gridVibrance = 1.0;
@@ -1650,6 +1666,10 @@
                 if (newParams.hasOwnProperty('densityMultiplier')) {
                     this.densityMultiplier = newParams.densityMultiplier;
                     // console.log(`Viz ${this.instanceId || this.role}: densityMultiplier set to ${this.densityMultiplier}`);
+                }
+                if (newParams.hasOwnProperty('opacity')) { // For card/board visualizer opacity control
+                    this.overallOpacity = newParams.opacity;
+                     // console.log(`Viz ${this.instanceId || this.role}: overallOpacity set to ${this.overallOpacity}`);
                 }
             }
             
@@ -1886,6 +1906,7 @@
                     uniform vec2 u_contentGravity;
                     uniform float u_contentFlowStrength;
                     uniform float u_textProximity;
+                    uniform float u_overallOpacity; // New uniform for master-controlled opacity
                     
                     mat4 rotateXW(float theta) {
                         float c = cos(theta);
@@ -2044,8 +2065,8 @@
                         // Portal intensity enhancement
                         color += vec3(u_portalIntensity * 0.2) * vec3(0.0, 1.0, 1.0);
                         
-                        float alpha = 0.85 + u_gridVibrance * 0.15;
-                        gl_FragColor = vec4(color, alpha);
+                        float baseAlpha = 0.85 + u_gridVibrance * 0.15; // Original alpha calculation
+                        gl_FragColor = vec4(color, baseAlpha * u_overallOpacity); // Modulate with master opacity
                     }
                 `;
                 
@@ -2070,7 +2091,8 @@
                     inverseFlow: this.gl.getUniformLocation(this.program, 'u_inverseFlow'),
                     contentGravity: this.gl.getUniformLocation(this.program, 'u_contentGravity'),
                     contentFlowStrength: this.gl.getUniformLocation(this.program, 'u_contentFlowStrength'),
-                    textProximity: this.gl.getUniformLocation(this.program, 'u_textProximity')
+                    textProximity: this.gl.getUniformLocation(this.program, 'u_textProximity'),
+                    overallOpacity: this.gl.getUniformLocation(this.program, 'u_overallOpacity') // Add new uniform location
                 };
             }
             
@@ -2239,6 +2261,7 @@
                     this.contentGravityY !== undefined ? this.contentGravityY : 0.5);
                 this.gl.uniform1f(this.uniforms.contentFlowStrength, this.contentFlowStrength !== undefined ? this.contentFlowStrength : 0.0);
                 this.gl.uniform1f(this.uniforms.textProximity, this.textProximity !== undefined ? this.textProximity : 0.0);
+                this.gl.uniform1f(this.uniforms.overallOpacity, this.overallOpacity !== undefined ? this.overallOpacity : 1.0); // Set new uniform
                 
                 this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
             }
@@ -2246,7 +2269,8 @@
         
         // MORPHING BLOG SYSTEM
         class MorphingBlogSystem {
-            constructor() {
+            constructor(homeMaster) { // Accept homeMaster instance
+                this.homeMaster = homeMaster; // Store it
                 this.visualizers = [];
                 this.currentState = 0;
                 this.mouseX = 0.5;
@@ -2338,14 +2362,22 @@
                 
                 // Create board visualizer
                 const boardCanvas = document.getElementById('board-visualizer');
-                const boardViz = new ReactiveHyperAVCore(boardCanvas, 'board');
-                this.visualizers.push(boardViz);
+                if (boardCanvas) {
+                    const boardViz = new ReactiveHyperAVCore(boardCanvas, 'board', 'board-visualizer-instance');
+                    this.visualizers.push(boardViz);
+                    if (this.homeMaster) this.homeMaster.registerVisualizer(boardViz.instanceId, boardViz.role);
+                }
                 
                 // Create card visualizers
                 for (let i = 1; i <= 6; i++) {
                     const cardCanvas = document.getElementById(`card-visualizer-${i}`);
-                    const cardViz = new ReactiveHyperAVCore(cardCanvas, 'card');
-                    this.visualizers.push(cardViz);
+                    const cardId = `blog-card-${i}`; // Assuming blog-card-i is the ID of the parent .blog-card div
+                    if (cardCanvas) {
+                        const vizInstanceId = cardId + "-visualizer"; // e.g. blog-card-1-visualizer
+                        const cardViz = new ReactiveHyperAVCore(cardCanvas, 'card', vizInstanceId);
+                        this.visualizers.push(cardViz);
+                        if (this.homeMaster) this.homeMaster.registerVisualizer(cardViz.instanceId, cardViz.role);
+                    }
                 }
                 
                 // Create bezel visualizers
@@ -2360,8 +2392,9 @@
                 
                 bezelDirections.forEach((direction, index) => {
                     const bezelCanvas = document.getElementById(`bezel-visualizer-${direction}`);
-                    const bezelViz = new ReactiveHyperAVCore(bezelCanvas, 'bezel');
-                    if (bezelViz) {
+                    if (bezelCanvas) {
+                        const vizInstanceId = `bezel-visualizer-${direction}-instance`;
+                        const bezelViz = new ReactiveHyperAVCore(bezelCanvas, 'bezel', vizInstanceId);
                         // Set specific geometry and color for each bezel
                         bezelViz.states = [{
                             geometry: bezelGeometries[index],
@@ -2370,8 +2403,9 @@
                             color: bezelColors[index],
                             dimension: 3.4
                         }];
-                        bezelViz.snapToState(0);
+                        bezelViz.snapToState(0); // This might be deprecated if setTheme is fully adopted
                         this.visualizers.push(bezelViz);
+                        if (this.homeMaster) this.homeMaster.registerVisualizer(bezelViz.instanceId, bezelViz.role);
                     }
                 });
                 
@@ -2406,147 +2440,31 @@
                 });
                 
                 // Enhanced card hover effects with section focus
+                // THIS ENTIRE BLOCK IS BEING REPLACED BY HomeMaster/Bridge DRIVEN EFFECTS
+                // BASED ON 'visualizerInteraction' EVENTS FROM ReactiveHyperAVCore instances on cards.
+                /*
                 document.querySelectorAll('.blog-card').forEach((card, index) => {
                     card.addEventListener('mouseenter', () => {
-                        // Section hover enlargement
-                        card.setAttribute('data-section-hover', 'true');
-                        
-                        // Set inverse effect on other cards
-                        document.querySelectorAll('.blog-card').forEach((otherCard, otherIndex) => {
-                            if (otherIndex !== index) {
-                                otherCard.setAttribute('data-inverse', 'true');
-                            }
-                        });
-                        
-                        // Update CSS variables for focused section
-                        document.documentElement.style.setProperty('--section-focus', index);
-                        document.documentElement.style.setProperty('--hover-section', index);
-                        
-                        // SMART CONTENT GUIDANCE - Calculate content center
-                        const cardRect = card.getBoundingClientRect();
-                        const contentCenterX = (cardRect.left + cardRect.width * 0.5) / window.innerWidth;
-                        const contentCenterY = 1.0 - (cardRect.top + cardRect.height * 0.5) / window.innerHeight;
-                        
-                        // Update content gravity for ALL visualizers
-                        document.documentElement.style.setProperty('--content-gravity-x', contentCenterX);
-                        document.documentElement.style.setProperty('--content-gravity-y', contentCenterY);
-                        document.documentElement.style.setProperty('--content-flow-strength', '1.0');
-                        
-                        // Smart opacity: focused card dims, others flow toward it
-                        document.documentElement.style.setProperty('--focused-opacity', '0.1');
-                        document.documentElement.style.setProperty('--gravity-opacity', '0.8');
-                        
-                        // Enhanced visualizer reactions
-                        this.visualizers.forEach((viz, vizIndex) => {
-                            if (vizIndex === index + 1) { // +1 because index 0 is board
-                                viz.sectionFocus = 1.0;
-                                viz.gridVibrance = 2.0;
-                                viz.contentGravityX = contentCenterX;
-                                viz.contentGravityY = contentCenterY;
-                                viz.contentFlowStrength = 0.0; // No flow within focused card
-                                viz.textProximity = 1.0;
-                            } else {
-                                viz.inverseFlow = 0.5;
-                                viz.gridVibrance = 0.3;
-                                viz.contentGravityX = contentCenterX;
-                                viz.contentGravityY = contentCenterY;
-                                viz.contentFlowStrength = 1.0; // Flow toward focused content
-                                viz.textProximity = 0.0;
-                            }
-                        });
+                        // ... OLD LOGIC ...
                     });
                     
                     card.addEventListener('mouseleave', () => {
-                        // Remove section hover
-                        card.removeAttribute('data-section-hover');
-                        
-                        // Remove inverse effect from all cards
-                        document.querySelectorAll('.blog-card').forEach(otherCard => {
-                            otherCard.removeAttribute('data-inverse');
-                        });
-                        
-                        // Reset CSS variables
-                        document.documentElement.style.setProperty('--section-focus', '0');
-                        document.documentElement.style.setProperty('--hover-section', '-1');
-                        
-                        // Reset content guidance system
-                        document.documentElement.style.setProperty('--content-gravity-x', '0.5');
-                        document.documentElement.style.setProperty('--content-gravity-y', '0.5');
-                        document.documentElement.style.setProperty('--content-flow-strength', '0.0');
-                        document.documentElement.style.setProperty('--focused-opacity', '0.6');
-                        document.documentElement.style.setProperty('--gravity-opacity', '0.6');
-                        
-                        // Reset visualizer states
-                        this.visualizers.forEach(viz => {
-                            viz.sectionFocus = 0.0;
-                            viz.inverseFlow = 0.0;
-                            viz.gridVibrance = 1.0;
-                            viz.contentGravityX = 0.5;
-                            viz.contentGravityY = 0.5;
-                            viz.contentFlowStrength = 0.0;
-                            viz.textProximity = 0.0;
-                        });
+                        // ... OLD LOGIC ...
                     });
                     
                     // Click to enter READING MODE
                     card.addEventListener('click', (e) => {
-                        if (!e.target.closest('.link-button')) { // Don't trigger on buttons
-                            card.classList.toggle('reading-mode');
-                            
-                            if (card.classList.contains('reading-mode')) {
-                                // Enter reading mode
-                                document.documentElement.style.setProperty('--reading-opacity', '0.05');
-                                document.documentElement.style.setProperty('--board-opacity', '0.08');
-                                
-                                // Ultra-subtle visualizers for reading
-                                this.visualizers.forEach(viz => {
-                                    viz.contentFlowStrength = 0.0;
-                                    viz.textProximity = 1.0;
-                                    viz.gridVibrance = 0.2;
-                                });
-                                
-                                console.log('📖 READING MODE ACTIVATED');
-                            } else {
-                                // Exit reading mode
-                                document.documentElement.style.setProperty('--reading-opacity', '0.6');
-                                document.documentElement.style.setProperty('--board-opacity', '0.3');
-                                
-                                // Return to normal visualizer state
-                                this.visualizers.forEach(viz => {
-                                    viz.contentFlowStrength = 0.0;
-                                    viz.textProximity = 0.0;
-                                    viz.gridVibrance = 1.0;
-                                });
-                                
-                                console.log('🌌 NORMAL MODE RESTORED');
-                            }
-                        }
+                        // ... OLD LOGIC ...
+                        // This will be refactored to use HomeMaster state for reading mode
                     });
                     
                     // Section-specific scroll reactivity
                     card.addEventListener('wheel', (e) => {
-                        if (e.target.closest('.blog-card') === card) {
-                            e.stopPropagation();
-                            
-                            // Micro reactivity within section
-                            const scrollIntensity = Math.abs(e.deltaY) / 100;
-                            this.visualizers[index + 1].microChaos = scrollIntensity;
-                            
-                            // Inverse reaction in other sections
-                            this.visualizers.forEach((viz, vizIndex) => {
-                                if (vizIndex !== index + 1) {
-                                    viz.inverseFlow = scrollIntensity * 0.3;
-                                }
-                            });
-                            
-                            // Decay effects
-                            setTimeout(() => {
-                                this.visualizers[index + 1].microChaos = 0.0;
-                                this.visualizers.forEach(viz => viz.inverseFlow = 0.0);
-                            }, 300);
-                        }
+                        // ... OLD LOGIC ...
+                        // This will be refactored if micro-chaos on scroll is desired via HomeMaster
                     }, { passive: false });
                 });
+                */
                 
                 // Global mouse energy decay
                 setInterval(() => {
@@ -3573,7 +3491,7 @@
                 window.vib3Bridge = reactivityBridge;
                 
                 // Initialize blog system
-                const system = new MorphingBlogSystem();
+                const system = new MorphingBlogSystem(homeMaster); // Pass homeMaster
                 window.morphingBlogSystem = system;
                 
                 // Initialize DUAL navigation system with proper architecture

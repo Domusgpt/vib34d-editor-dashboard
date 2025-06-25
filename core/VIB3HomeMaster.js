@@ -53,7 +53,23 @@ class VIB3HomeMaster {
 
             // State for managing ecosystem effects on individual visualizers
             visualizerParameterTargets: {}, // e.g., { vizId1: { densityMultiplier: { target: 0.5, current:1.0, startTime:0, duration:300, easing:'ease-out' } }, ... }
-            activeClickAnimation: null    // e.g., { visualizerId: string, phaseIndex: number, phaseStartTime: number, clickPreset: object }
+            activeClickAnimation: null,    // e.g., { visualizerId: string, phaseIndex: number, phaseStartTime: number, clickPreset: object }
+
+            activeVisualizers: {}, // Stores { vizId: { role: 'card', /* other static info if needed */ } }
+
+            // States for card-specific hover effects (DOM and Visualizer)
+            // cardDomEffects will store animation targets for CSS properties of the .blog-card elements
+            cardDomEffects: {}, // { cardId: { scale: {current, target,...}, opacity:{...}, borderColor:{...}, etc. } }
+            // cardVisualizerEffects was conceptual; specific viz params like opacity go into visualizerParameterTargets
+            // boardVisualizerEffect was conceptual; board opacity goes into visualizerParameterTargets['board-viz-id']
+
+            contentGravityState: {
+                isActive: false,
+                targetX: 0.5, targetY: 0.5, // Default center
+                strength: 0.0, // Current animated strength
+                targetStrength: 0.0, // Target strength for animation
+                animation: null // { startTime, duration, easing }
+            }
         };
         
         // Section Modifiers - Relational mathematical relationships (configurable)
@@ -566,17 +582,62 @@ class VIB3HomeMaster {
                         if (elapsedTime >= (phaseConfig.animation.duration + (phaseConfig.animation.delay || 0))) {
                             animState.phaseIndex++;
                             if (animState.phaseIndex < animState.clickPreset.phases.length) {
-                                // Apply next phase's initial targets
                                 this._applyClickAnimationPhase(animState);
                             } else {
-                                // Animation complete
-                                // console.log(`Click animation fully complete for ${animState.visualizerId}`);
                                 this.masterState.activeClickAnimation = null;
                             }
                         }
                     }
                 }
-                
+
+                // Process card DOM effect animations
+                for (const cardId in this.masterState.cardDomEffects) {
+                    for (const effectName in this.masterState.cardDomEffects[cardId]) {
+                        const anim = this.masterState.cardDomEffects[cardId][effectName];
+                        if (anim && anim.startTime > 0) {
+                            const elapsedTime = currentTime - anim.startTime;
+                            const progress = Math.min(elapsedTime / anim.duration, 1.0);
+                            const easedProgress = this._applyEasing(progress, anim.easing);
+
+                            anim.current = anim.fromValue + (anim.target - anim.fromValue) * easedProgress;
+
+                            if (progress >= 1.0) {
+                                anim.current = anim.target;
+                                anim.startTime = 0; // Mark as complete
+                                anim.fromValue = undefined;
+                            }
+                        }
+                    }
+                }
+
+                // Process content gravity strength animation
+                const gravityAnim = this.masterState.contentGravityState.animation;
+                if (this.masterState.contentGravityState.isActive && gravityAnim && gravityAnim.startTime > 0) {
+                    const elapsedTime = currentTime - gravityAnim.startTime;
+                    const progress = Math.min(elapsedTime / gravityAnim.duration, 1.0);
+                    const easedProgress = this._applyEasing(progress, gravityAnim.easing);
+
+                    this.masterState.contentGravityState.strength = gravityAnim.fromStrength + (this.masterState.contentGravityState.targetStrength - gravityAnim.fromStrength) * easedProgress;
+
+                    if (progress >= 1.0) {
+                        this.masterState.contentGravityState.strength = this.masterState.contentGravityState.targetStrength;
+                        this.masterState.contentGravityState.animation = null; // Clear animation
+                    }
+                } else if (!this.masterState.contentGravityState.isActive && this.masterState.contentGravityState.strength > 0 && gravityAnim && gravityAnim.startTime > 0) {
+                     // Animating strength back to 0 if isActive becomes false
+                    const elapsedTime = currentTime - gravityAnim.startTime;
+                    const progress = Math.min(elapsedTime / gravityAnim.duration, 1.0);
+                    const easedProgress = this._applyEasing(progress, gravityAnim.easing);
+
+                    this.masterState.contentGravityState.strength = gravityAnim.fromStrength * (1.0 - easedProgress); //Decay from fromStrength to 0
+
+                    if (progress >= 1.0) {
+                        this.masterState.contentGravityState.strength = 0;
+                        this.masterState.contentGravityState.animation = null;
+                    }
+                }
+
+
                 this.lastUpdateTime = currentTime;
             }
             
@@ -907,6 +968,27 @@ class VIB3HomeMaster {
         console.log('🔄 VIB3HomeMaster reset to baseline state');
     }
 
+    registerVisualizer(vizId, vizRole) {
+        if (!vizId) {
+            console.warn("VIB3HomeMaster: Attempted to register visualizer with no ID.");
+            return;
+        }
+        this.masterState.activeVisualizers[vizId] = { role: vizRole || 'unknown' };
+        console.log(`👁️ Visualizer registered: ${vizId} (role: ${vizRole})`);
+        // Initialize its parameter targets if not already present
+        if (!this.masterState.visualizerParameterTargets[vizId]) {
+            this.masterState.visualizerParameterTargets[vizId] = {};
+        }
+    }
+
+    unregisterVisualizer(vizId) {
+        if (this.masterState.activeVisualizers[vizId]) {
+            delete this.masterState.activeVisualizers[vizId];
+            delete this.masterState.visualizerParameterTargets[vizId]; // Also clear any animation targets
+            console.log(`👁️ Visualizer unregistered: ${vizId}`);
+        }
+    }
+
     _applyEasing(t, easingFunction = "linear") {
         switch (easingFunction) {
             case "ease-out": return 1 - Math.pow(1 - t, 3); // Cubic ease-out
@@ -957,39 +1039,65 @@ class VIB3HomeMaster {
                     clientX: data.clientX, clientY: data.clientY
                 };
 
-                if (prevHoveredId !== data.elementId) {
+                if (prevHoveredId !== data.elementId) { // Hover has changed to a new element or from null
                     const hoverPreset = this.editorConfig?.interactionPresets?.visualizerHoverEcosystem;
                     if (hoverPreset?.enabled) {
-                        // Apply observer effect to previously hovered (if any) - revert to normal
-                        if (prevHoveredId && this.masterState.visualizerParameterTargets[prevHoveredId]) {
-                            this._setVisualizerParameterTarget(
+                        const targetParam = hoverPreset.targetEffect.parameterToChange;
+                        const observerParam = hoverPreset.observerEffect.parameterToChange; // Could be same as targetParam
+
+                        // Revert previously hovered element to observer state (or normal if no observers)
+                        if (prevHoveredId) {
+                             this._setVisualizerParameterTarget(
                                 prevHoveredId,
-                                hoverPreset.observerEffect.parameterToChange,
-                                1.0, // Assuming 1.0 is the "normal" multiplier
+                                targetParam, // Assuming target and observer affect same param type for simplicity in revert
+                                hoverPreset.observerEffect.value, // Make it behave like an observer now
                                 hoverPreset.animation.duration,
                                 hoverPreset.animation.easingFunction,
-                                "set" // or use operation from preset if it makes sense for revert
+                                hoverPreset.observerEffect.operation || "set"
                             );
                         }
 
                         // Apply target effect to newly hovered element
                         this._setVisualizerParameterTarget(
                             data.elementId,
-                            hoverPreset.targetEffect.parameterToChange,
-                            hoverPreset.targetEffect.value, // e.g., 0.5
+                            targetParam,
+                            hoverPreset.targetEffect.value,
                             hoverPreset.animation.duration,
                             hoverPreset.animation.easingFunction,
-                            hoverPreset.targetEffect.operation // e.g., "multiplyBase" or "set"
+                            hoverPreset.targetEffect.operation || "set"
                         );
 
                         // Apply observer effect to all other visualizers
-                        // This requires knowing all visualizer IDs. For now, this is conceptual.
-                        // We'd iterate window.morphingBlogSystem.visualizers or similar.
-                        // This part needs a list of all active visualizer IDs.
-                        // For simplicity, this example won't apply observer effects in this pass.
-                        // We'll focus on the target and clearing the previous hover.
-                        console.log(`Hover effect triggered for ${data.elementId}. Conceptual observer effects for others.`);
+                        for (const vizId in this.masterState.activeVisualizers) {
+                            if (vizId !== data.elementId && vizId !== prevHoveredId) { // Don't re-apply to new target or just-reverted prev target
+                                this._setVisualizerParameterTarget(
+                                    vizId,
+                                    observerParam,
+                                    hoverPreset.observerEffect.value,
+                                    hoverPreset.animation.duration,
+                                    hoverPreset.animation.easingFunction,
+                                    hoverPreset.observerEffect.operation || "set"
+                                );
+                            }
+                        }
+                        console.log(`Hover ecosystem effect triggered for target ${data.elementId}.`);
                     }
+                } else if (!data.elementId && prevHoveredId) { // Mouse moved off all known visualizers (conceptual: this event isn't sent yet)
+                     const hoverPreset = this.editorConfig?.interactionPresets?.visualizerHoverEcosystem;
+                     if (hoverPreset?.enabled) {
+                        // Revert all to normal
+                         for (const vizId in this.masterState.activeVisualizers) {
+                            this._setVisualizerParameterTarget(
+                                vizId,
+                                hoverPreset.targetEffect.parameterToChange, // Assuming same param for simplicity
+                                1.0, // Normal state
+                                hoverPreset.animation.duration,
+                                hoverPreset.animation.easingFunction,
+                                "set"
+                            );
+                        }
+                        console.log(`Hover cleared, all visualizers reverting to normal.`);
+                     }
                 }
                 break;
 
@@ -1089,6 +1197,222 @@ class VIB3HomeMaster {
         // }
         // For now, only target is animated in this simplified example for click.
         // A full ecosystem click would require iterating all visualizers.
+    }
+
+    // Helper for setting card DOM effect targets
+    _setCardDomEffectTarget(cardId, effectName, targetValue, presetAnimationConfig, currentDomValues = {}) {
+        if (!this.masterState.cardDomEffects[cardId]) {
+            this.masterState.cardDomEffects[cardId] = {};
+        }
+        if (!this.masterState.cardDomEffects[cardId][effectName]) {
+            this.masterState.cardDomEffects[cardId][effectName] = {};
+        }
+
+        const animState = this.masterState.cardDomEffects[cardId][effectName];
+        animState.fromValue = animState.current !== undefined ? animState.current : (currentDomValues[effectName] || this._getDefaultDomEffectValue(effectName));
+        animState.current = animState.fromValue;
+        animState.target = targetValue;
+        animState.startTime = performance.now();
+        animState.duration = presetAnimationConfig.duration || 600; // Default from cardHoverEffects preset
+        animState.easing = presetAnimationConfig.easingFunction || "cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+        // console.log(`Set DOM Effect for ${cardId}.${effectName}:`, animState);
+    }
+
+    _getDefaultDomEffectValue(effectName) {
+        switch(effectName) {
+            case 'scale': return 1.0;
+            case 'opacity': return 1.0;
+            case 'translateZ_px': return 0;
+            case 'borderColor': return 'rgba(255, 255, 255, 0.18)'; // Default from .blog-card
+            case 'backdropBlur_px': return 20; // Approximate default
+            case 'backdropSaturate_percent': return 180; // Approximate default
+            case 'zIndex': return 5; // Default z-index
+            default: return 0;
+        }
+    }
+
+    // Modified handleVisualizerInteraction to include card DOM effects
+    handleVisualizerInteraction(data) {
+        const prevHoveredVisualizerInfo = this.masterState.hoveredVisualizerInfo;
+        const newHoveredVisualizerId = data.type === 'mousemove' || data.type === 'touchstart' || data.type === 'touchmove' ? data.elementId : null;
+
+        // Update general hoveredVisualizerInfo
+        if (newHoveredVisualizerId) {
+            this.masterState.hoveredVisualizerInfo = {
+                id: data.elementId, role: data.canvasRole, x: data.normalizedX, y: data.normalizedY,
+                clientX: data.clientX, clientY: data.clientY,
+                // Attempt to get card center if it's a card visualizer
+                cardCenterX: data.canvasRole === 'card' ? (data.rect?.left + data.rect?.width / 2) / window.innerWidth : undefined,
+                cardCenterY: data.canvasRole === 'card' ? 1.0 - (data.rect?.top + data.rect?.height / 2) / window.innerHeight : undefined,
+            };
+        } else if (data.type === 'visualizerMouseLeave' && prevHoveredVisualizerInfo && prevHoveredVisualizerInfo.id === data.elementId) {
+            // This 'visualizerMouseLeave' event type would need to be sent by ReactiveHyperAVCore
+            this.masterState.hoveredVisualizerInfo = null;
+        }
+
+
+        // --- Ecosystem Density Effect (from previous step, slightly refined) ---
+        const densityHoverPreset = this.editorConfig?.interactionPresets?.visualizerHoverEcosystem;
+        if (densityHoverPreset?.enabled) {
+            const targetParam = densityHoverPreset.targetEffect.parameterToChange;
+            const observerParam = densityHoverPreset.observerEffect.parameterToChange;
+            const animConfig = densityHoverPreset.animation;
+
+            if (prevHoveredVisualizerInfo?.id !== newHoveredVisualizerId) {
+                // Revert previously hovered (if any) to observer state or normal
+                if (prevHoveredVisualizerInfo?.id) {
+                    this._setVisualizerParameterTarget(prevHoveredVisualizerInfo.id, targetParam, 1.0, animConfig.duration, animConfig.easingFunction, "set");
+                }
+                // Apply effects based on new hover state
+                for (const vizId in this.masterState.activeVisualizers) {
+                    if (vizId === newHoveredVisualizerId) { // Newly hovered is the target
+                        this._setVisualizerParameterTarget(vizId, targetParam, densityHoverPreset.targetEffect.value, animConfig.duration, animConfig.easingFunction, densityHoverPreset.targetEffect.operation || "set");
+                    } else { // All others are observers (or revert to normal if no new hover)
+                        this._setVisualizerParameterTarget(vizId, observerParam, newHoveredVisualizerId ? densityHoverPreset.observerEffect.value : 1.0, animConfig.duration, animConfig.easingFunction, densityHoverPreset.observerEffect.operation || "set");
+                    }
+                }
+            }
+        }
+        // --- End Ecosystem Density Effect ---
+
+
+        // --- Card Specific Hover Effects (DOM, Card Visualizer Opacity, Board Opacity, Content Gravity) ---
+        const cardHoverPreset = this.editorConfig?.interactionPresets?.cardHoverEffects;
+        if (cardHoverPreset?.enabled) {
+            const animConfig = cardHoverPreset.animation;
+            const currentHoveredCardVizId = (this.masterState.hoveredVisualizerInfo && this.masterState.hoveredVisualizerInfo.role === 'card') ? this.masterState.hoveredVisualizerInfo.id : null;
+            const prevHoveredCardVizId = (prevHoveredVisualizerInfo && prevHoveredVisualizerInfo.role === 'card') ? prevHoveredVisualizerInfo.id : null;
+
+            // Determine cardId from visualizerId (e.g., "blog-card-1-visualizer" -> "blog-card-1")
+            const getCardIdFromVizId = (vizId) => vizId ? vizId.replace("-visualizer", "") : null;
+            const currentHoveredCardId = getCardIdFromVizId(currentHoveredCardVizId);
+            const prevHoveredCardId = getCardIdFromVizId(prevHoveredCardVizId);
+
+            if (currentHoveredCardId !== prevHoveredCardId) {
+                 // Revert previously hovered card DOM effects
+                if (prevHoveredCardId) {
+                    for (const effectName in cardHoverPreset.targetCardDOM) {
+                        this._setCardDomEffectTarget(prevHoveredCardId, effectName, this._getDefaultDomEffectValue(effectName), animConfig, this.masterState.cardDomEffects[prevHoveredCardId]);
+                    }
+                    if (this.masterState.activeVisualizers[prevHoveredCardVizId]) { // Revert target card visualizer opacity
+                         this._setVisualizerParameterTarget(prevHoveredCardVizId, 'opacity', this.masterState.activeVisualizers[prevHoveredCardVizId].defaultOpacity || 0.6, animConfig.duration, animConfig.easingFunction);
+                    }
+                }
+
+                // Apply effects to newly hovered card and observers
+                for (const vizId in this.masterState.activeVisualizers) {
+                    const cardId = getCardIdFromVizId(vizId); // Assumes vizId format is consistent for cards
+                    if (!cardId || this.masterState.activeVisualizers[vizId].role !== 'card') continue;
+
+                    if (vizId === currentHoveredCardVizId) { // Target card
+                        for (const effectName in cardHoverPreset.targetCardDOM) {
+                            this._setCardDomEffectTarget(cardId, effectName, cardHoverPreset.targetCardDOM[effectName], animConfig, this.masterState.cardDomEffects[cardId]);
+                        }
+                        if (cardHoverPreset.targetCardVisualizer) { // Target card's visualizer opacity
+                            this._setVisualizerParameterTarget(vizId, 'opacity', cardHoverPreset.targetCardVisualizer.opacity, animConfig.duration, animConfig.easingFunction);
+                        }
+                    } else { // Observer cards
+                        for (const effectName in cardHoverPreset.observerCardsDOM) {
+                             this._setCardDomEffectTarget(cardId, effectName, cardHoverPreset.observerCardsDOM[effectName], animConfig, this.masterState.cardDomEffects[cardId]);
+                        }
+                         // Observer card's visualizer opacity (revert to default or specific observer opacity if defined)
+                        this._setVisualizerParameterTarget(vizId, 'opacity', this.masterState.activeVisualizers[vizId].defaultOpacity || 0.6, animConfig.duration, animConfig.easingFunction);
+                    }
+                }
+
+                // Board Visualizer Opacity & Content Gravity
+                if (currentHoveredCardId) {
+                    if (cardHoverPreset.boardVisualizerOnCardHover) {
+                        this._setVisualizerParameterTarget('board-visualizer-instance', 'opacity', cardHoverPreset.boardVisualizerOnCardHover.opacity, animConfig.duration, animConfig.easingFunction);
+                    }
+                    if (cardHoverPreset.contentGravityOnHover?.enabled) {
+                        this.masterState.contentGravityState.isActive = true;
+                        this.masterState.contentGravityState.targetX = this.masterState.hoveredVisualizerInfo.cardCenterX || 0.5;
+                        this.masterState.contentGravityState.targetY = this.masterState.hoveredVisualizerInfo.cardCenterY || 0.5;
+                        this.masterState.contentGravityState.targetStrength = cardHoverPreset.contentGravityOnHover.strength;
+                        this.masterState.contentGravityState.animation = { startTime: performance.now(), duration: animConfig.duration, easing: animConfig.easingFunction, fromStrength: this.masterState.contentGravityState.strength };
+                    }
+                } else { // No card is hovered (or hover cleared)
+                    if (cardHoverPreset.boardVisualizerOnCardHover) { // Revert board opacity
+                        this._setVisualizerParameterTarget('board-visualizer-instance', 'opacity', this._getDefaultDomEffectValue('boardOpacity') || 0.3, animConfig.duration, animConfig.easingFunction);
+                    }
+                    if (this.masterState.contentGravityState.isActive) { // Deactivate content gravity
+                        this.masterState.contentGravityState.isActive = false;
+                        this.masterState.contentGravityState.targetStrength = 0.0;
+                        this.masterState.contentGravityState.animation = { startTime: performance.now(), duration: animConfig.duration, easing: animConfig.easingFunction, fromStrength: this.masterState.contentGravityState.strength };
+                    }
+                }
+            }
+        }
+        // --- End Card Specific Hover Effects ---
+
+
+        // --- Click Logic (from previous step, largely unchanged for now but needs observer effects) ---
+        if (data.type === 'click') {
+            this.masterState.clickedVisualizerInfo = {
+                id: data.elementId, role: data.canvasRole, x: data.normalizedX, y: data.normalizedY,
+                button: data.button, eventType: 'click', timestamp: data.timestamp
+            };
+
+            const clickPreset = this.editorConfig?.interactionPresets?.visualizerClickEcosystem;
+            if (clickPreset?.enabled && clickPreset.phases && clickPreset.phases.length > 0) {
+                this.masterState.activeClickAnimation = {
+                    visualizerId: data.elementId,
+                    phaseIndex: 0,
+                    phaseStartTime: performance.now(),
+                    clickPreset: clickPreset
+                };
+                this._applyClickAnimationPhase(this.masterState.activeClickAnimation);
+                // console.log(`Click animation started for ${data.elementId}, phase 0.`);
+            }
+        }
+        // --- End Click Logic ---
+
+        // Fallback for other types or unhandled logic
+        if (!['mousemove', 'touchstart', 'touchmove', 'mousedown', 'click', 'mouseup', 'touchend', 'visualizerMouseLeave'].includes(data.type)) {
+             console.warn(`VIB3HomeMaster: Unhandled visualizerInteraction type: ${data.type}`, data);
+        }
+    }
+
+    _applyClickAnimationPhase(animationState) {
+        if (!animationState || !animationState.clickPreset || !animationState.clickPreset.phases) return;
+
+        const phaseConfig = animationState.clickPreset.phases[animationState.phaseIndex];
+        if (!phaseConfig) {
+            this.masterState.activeClickAnimation = null;
+            return;
+        }
+
+        console.log(`Applying click animation phase ${animationState.phaseIndex} for ${animationState.visualizerId}`);
+        animationState.phaseStartTime = performance.now();
+
+        if (phaseConfig.targetEffect) {
+            this._setVisualizerParameterTarget(
+                animationState.visualizerId,
+                phaseConfig.targetEffect.parameterToChange,
+                phaseConfig.targetEffect.value,
+                phaseConfig.animation.duration,
+                phaseConfig.animation.easingFunction,
+                phaseConfig.targetEffect.operation || "set"
+            );
+        }
+
+        // Apply to observers
+        const observerEffect = phaseConfig.observerEffect;
+        if (observerEffect) {
+            for (const vizId in this.masterState.activeVisualizers) {
+                if (vizId !== animationState.visualizerId) {
+                    this._setVisualizerParameterTarget(
+                        vizId,
+                        observerEffect.parameterToChange,
+                        observerEffect.value,
+                        phaseConfig.animation.duration, // Assuming same animation for observers
+                        phaseConfig.animation.easingFunction,
+                        observerEffect.operation || "set"
+                    );
+                }
+            }
+        }
     }
 }
 

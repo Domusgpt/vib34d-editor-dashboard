@@ -786,12 +786,55 @@ class UnifiedReactivityBridge {
                     for (const elementId in this.homeMaster.masterState.scrollableElementsState) {
                         const state = this.homeMaster.masterState.scrollableElementsState[elementId];
                         if (state) {
-                            // this._ensureScrollCssProperties(elementId); // Optional: formal registration in this.cssProperties
                             this.updateCSSProperty(`--${elementId}-scroll-x`, `${state.offsetX || 0}px`);
                             this.updateCSSProperty(`--${elementId}-scroll-y`, `${state.offsetY || 0}px`);
                         }
                     }
                 }
+
+                // Sync card DOM effects states
+                if (this.homeMaster.masterState.cardDomEffects) {
+                    for (const cardId_DOM in this.homeMaster.masterState.cardDomEffects) { // Renamed to avoid conflict if cardId is a local var
+                        const effects = this.homeMaster.masterState.cardDomEffects[cardId_DOM];
+                        const cardElement = document.getElementById(cardId_DOM); // Get the card DOM element
+
+                        if (cardElement) {
+                            for (const effectName in effects) {
+                                const anim = effects[effectName];
+                                if (anim && anim.hasOwnProperty('current')) {
+                                    let value = anim.current;
+                                    let unit = '';
+                                    if (effectName.endsWith('_px')) {
+                                        unit = 'px';
+                                    } else if (effectName.endsWith('_percent')) {
+                                        unit = '%';
+                                    }
+
+                                    const cssVarName = `--self-${effectName.replace('_px', '').replace('_percent', '')}`;
+
+                                    // For zIndex, ensure it's an integer and no unit
+                                    if (effectName === 'zIndex') {
+                                        cardElement.style.setProperty(cssVarName, Math.round(value).toString());
+                                    } else if (effectName === 'borderColor') { // borderColor is a string
+                                        cardElement.style.setProperty(cssVarName, value.toString());
+                                    }
+                                    else {
+                                        cardElement.style.setProperty(cssVarName, `${value}${unit}`);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                 // Sync global content gravity CSS vars (if CSS uses them directly, though WebGL also gets them)
+                if (this.homeMaster.masterState.contentGravityState) {
+                    const cgs = this.homeMaster.masterState.contentGravityState;
+                    this.updateCSSProperty('--content-gravity-x-css', `${cgs.targetX * 100}%`); // Example for CSS %
+                    this.updateCSSProperty('--content-gravity-y-css', `${cgs.targetY * 100}%`);
+                    this.updateCSSProperty('--content-flow-strength-css', `${cgs.strength}`);
+                }
+
+
             }
 
             // Potentially other periodic sync tasks from syncAllLayers could be moved here too
