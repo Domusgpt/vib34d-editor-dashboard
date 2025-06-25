@@ -45,7 +45,11 @@ class VIB3HomeMaster {
             // Universal Scroll System State
             scrollableElementsState: {}, // Keyed by element ID
                                          // Each entry: { offsetX, offsetY, isDragging, snapBackTargetX, snapBackTargetY, snapBackStartTime, momentumVelocityX, momentumVelocityY, profileName, contentDimensionX, contentDimensionY, viewportDimensionX, viewportDimensionY, lastRawX, lastRawY, startX, startY, initialOffsetX, initialOffsetY, currentVelocityX, currentVelocityY, lastMoveTime }
-            activeDragScrollElementId: null
+            activeDragScrollElementId: null,
+
+            // Visualizer-specific interaction states
+            hoveredVisualizerInfo: null, // { id, role, x, y }
+            clickedVisualizerInfo: null  // { id, role, x, y, button }, potentially timed/cleared
         };
         
         // Section Modifiers - Relational mathematical relationships (configurable)
@@ -839,6 +843,84 @@ class VIB3HomeMaster {
         };
         
         console.log('🔄 VIB3HomeMaster reset to baseline state');
+    }
+
+    handleVisualizerInteraction(data) {
+        // data: { type, elementId, canvasRole, normalizedX, normalizedY, clientX, clientY, button, timestamp }
+        // console.log('VIB3HomeMaster: handleVisualizerInteraction', data);
+
+        switch (data.type) {
+            case 'mousemove':
+            case 'touchstart': // Treat touchstart like hover for setting hovered info
+            case 'touchmove':
+                this.masterState.hoveredVisualizerInfo = {
+                    id: data.elementId,
+                    role: data.canvasRole,
+                    x: data.normalizedX,
+                    y: data.normalizedY,
+                    clientX: data.clientX, // Store raw screen coords too if needed
+                    clientY: data.clientY
+                };
+                // Note: A 'mouseleave' or 'touchend' equivalent from the visualizer would be needed
+                // to reliably set hoveredVisualizerInfo to null. This could be inferred if no
+                // mousemove/touchmove events are received for a certain period from any visualizer,
+                // or if a global mousemove is outside all known visualizer bounds.
+                // For now, it just stores the last hovered.
+                break;
+
+            // It might be useful to distinguish mousedown from click for some effects.
+            case 'mousedown':
+                // Could set a temporary "pressed" state or trigger immediate press effects
+                this.masterState.clickedVisualizerInfo = { // Overwrite or update for press-hold-release cycle
+                    id: data.elementId,
+                    role: data.canvasRole,
+                    x: data.normalizedX,
+                    y: data.normalizedY,
+                    button: data.button,
+                    eventType: 'mousedown',
+                    timestamp: data.timestamp
+                };
+                // Example: Trigger a short-lived effect, maybe via registerInteraction
+                // this.registerInteraction('visualizerPressEffect', 1.0, 100);
+                break;
+
+            case 'click': // A full click event
+                this.masterState.clickedVisualizerInfo = {
+                    id: data.elementId,
+                    role: data.canvasRole,
+                    x: data.normalizedX,
+                    y: data.normalizedY,
+                    button: data.button,
+                    eventType: 'click',
+                    timestamp: data.timestamp
+                };
+                // Example: Trigger a different effect for a completed click
+                // this.registerInteraction('visualizerClickEffect', 1.0, 300);
+
+                // Consider clearing clickedVisualizerInfo after a short delay or on next interaction
+                // if it's meant to be a momentary event signal.
+                // For now, it just stores the last click.
+                break;
+
+            case 'mouseup':
+            case 'touchend':
+                // If tracking a press-hold-release cycle, 'mouseup' or 'touchend' would complete it.
+                // Could clear a "pressed" state if one was set on mousedown.
+                // If this.masterState.clickedVisualizerInfo was set on mousedown and matches this elementId,
+                // we could augment it or clear it.
+                if (this.masterState.clickedVisualizerInfo && this.masterState.clickedVisualizerInfo.id === data.elementId && this.masterState.clickedVisualizerInfo.eventType === 'mousedown') {
+                    // It's a mouseup following a mousedown on the same visualizer
+                    // console.log(`Visualizer ${data.elementId} released.`);
+                    // Potentially clear or update clickedVisualizerInfo if it's for press state
+                }
+                // For touchend, it might also clear hoveredVisualizerInfo if no other touches active
+                // This part needs more sophisticated logic if precise mouseleave/touchend on visualizer is required
+                // For now, hoveredVisualizerInfo stays until another visualizer is hovered.
+                break;
+
+            default:
+                console.warn(`VIB3HomeMaster: Unhandled visualizerInteraction type: ${data.type}`, data);
+        }
     }
 }
 

@@ -356,6 +356,15 @@ class UnifiedReactivityBridge {
             case 'cubeNavigation':
                 this.processCubeNavigation(data);
                 break;
+            case 'visualizerInteraction': // New case
+                if (this.homeMaster && this.homeMaster.handleVisualizerInteraction) {
+                    this.homeMaster.handleVisualizerInteraction(data);
+                } else {
+                    console.warn("HomeMaster or handleVisualizerInteraction not found for visualizerInteraction event.", data);
+                }
+                break;
+            default:
+                console.warn(`Bridge: Unknown event type to process: ${type}`, data);
         }
     }
     
@@ -798,7 +807,8 @@ class UnifiedReactivityBridge {
     }
 
     // Redefined getWebGLParameters to source from HomeMaster
-    getWebGLParameters() {
+    // Now accepts vizInfo = { id, role } to provide context for the specific visualizer
+    getWebGLParameters(vizInfo = {}) {
         if (!this.homeMaster || !this.homeMaster.masterState) {
             console.warn("Bridge: HomeMaster not available for getWebGLParameters");
             return {};
@@ -839,43 +849,54 @@ class UnifiedReactivityBridge {
             textProximity: ms.focusedTextElement ? 1.0 : 0.0, // Example
 
             // Pass through any other relevant masterState properties or editorOverrides
-            ...ms.editorOverrides // e.g., colorVibrancy
+            ...ms.editorOverrides, // e.g., colorVibrancy
+
+            // Add visualizer-specific interaction states
+            isCurrentlyHovered: (ms.hoveredVisualizerInfo?.id === vizInfo.id),
+            normalizedMouseXOnViz: (ms.hoveredVisualizerInfo?.id === vizInfo.id) ? ms.hoveredVisualizerInfo.x : 0.5, // Default to center if not hovered
+            normalizedMouseYOnViz: (ms.hoveredVisualizerInfo?.id === vizInfo.id) ? ms.hoveredVisualizerInfo.y : 0.5,
+
+            // Example for click state - might be a momentary trigger rather than a persistent param
+            // isCurrentlyClicked: (ms.clickedVisualizerInfo?.id === vizInfo.id && ms.clickedVisualizerInfo?.eventType === 'mousedown'), // if tracking press
         };
 
-        // Remove undefined properties to avoid issues if visualizers expect numbers
+        // Clean up undefined properties - this loop is fine as a general safeguard
         for (const key in paramsForVisualizers) {
             if (paramsForVisualizers[key] === undefined) {
-                // Decide on a default or remove. For safety, let's provide a sensible default or remove.
-                // For now, just logging. Visualizer's updateParameters should handle undefined.
-                // console.warn(`WebGL param ${key} is undefined.`);
+                // console.warn(`WebGL param ${key} for visualizer ${vizInfo.id} is undefined. Check HomeMaster state or getParametersForSection.`);
+                // Setting a sensible default or removing might be better depending on shader robustness
+                // For example, if a shader expects a number, undefined could break it.
+                // delete paramsForVisualizers[key]; // Or assign a default like 0 or false
             }
         }
-        // console.log("Bridge: getWebGLParameters output:", paramsForVisualizers);
+        // if(vizInfo.id) console.log(`Bridge: getWebGLParameters for ${vizInfo.id}:`, paramsForVisualizers.isCurrentlyHovered);
         return paramsForVisualizers;
     }
 
-    // syncAllLayers will now use the new getWebGLParameters
+    // syncAllLayers will now use the new getWebGLParameters, passing vizInfo
      syncAllLayers() {
-        // Update all CSS custom properties (current logic for this is fine)
+        // Update all CSS custom properties
         Object.entries(this.cssProperties).forEach(([property, value]) => {
             document.documentElement.style.setProperty(property, value);
         });
 
-        const webGLParams = this.getWebGLParameters();
-
         this.visualizers.forEach(viz => {
             if (!viz) return;
 
-            if (viz.updateParameters) {
-                viz.updateParameters(webGLParams); // This now includes geometryThemeName
+            // Prepare vizInfo - Ensure viz has an instanceId or a unique role identifier
+            const vizId = viz.instanceId || viz.role; // Fallback to role if instanceId isn't set
+            if (!vizId) {
+                console.warn("Visualizer missing instanceId and role, cannot tailor parameters.", viz);
             }
-            // The setTheme call is now redundant here if updateParameters handles geometryThemeName
-            // else if (webGLParams.geometryThemeName && viz.setTheme && viz.currentTheme !== webGLParams.geometryThemeName) {
-            //    viz.setTheme(webGLParams.geometryThemeName);
-            // }
+            const vizInfo = { id: vizId, role: viz.role };
+            const webGLParams = this.getWebGLParameters(vizInfo); // Pass context
+
+            if (viz.updateParameters) {
+                viz.updateParameters(webGLParams);
+            }
         });
 
-        console.log('🔄 All visual layers synchronized using HomeMaster state.');
+        console.log('🔄 All visual layers synchronized using HomeMaster state (with per-visualizer context).');
     }
 }
 
