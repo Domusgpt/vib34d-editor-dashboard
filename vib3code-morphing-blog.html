@@ -2956,129 +2956,166 @@
                 this.homeMaster = homeMaster;
                 this.reactivityBridge = reactivityBridge;
                 this.tesseractContainer = document.getElementById('tesseractContainer');
-                // Single dynamic face with 8 geometry states
                 this.dynamicFace = document.getElementById('dynamic-face');
+
                 this.geometryStates = ['hypercube', 'tetrahedron', 'wave', 'sphere', 'fractal', 'crystal', 'klein', 'torus'];
-                this.currentGeometry = 0;
-                this.currentFace = 0;
+                this.currentFace = 0; // Default to HOME
+
                 this.isDragging = false;
                 this.startX = 0;
                 this.startY = 0;
                 this.dragVelocity = 0;
                 this.tensionLevel = 0;
                 this.isTransitioning = false;
-                this.springStrength = 0.6; // From editor config
-                this.dragSensitivity = 1.0;
                 this.lastDragTime = 0;
-                this.isScrolling = false;
-                this.scrollMomentum = 0;
-                
-                // Bezel detection zone (configurable via editor)
-                this.bezelWidth = 80;
+                this.isScrolling = false; // Used for drag-as-scroll
+                this.scrollMomentum = 0; // Used for drag-as-scroll
+
+                // These will be loaded from config
+                this.config = {
+                    navigationParameters: {
+                        dragThreshold: { value: 80 },
+                        tensionBuildupRate: { value: 0.02 },
+                        snapStrength: { value: 1.0 },
+                        bezelWidth: { value: 80 },
+                        dragSensitivity: { value: 1.0 },
+                        springStrength: { value: 0.6 }
+                    },
+                    edgeMappings: { // Default mappings, will be overridden by loaded config
+                        left: { targetFaceIndex: 2 },
+                        right: { targetFaceIndex: 1 },
+                        up: { targetFaceIndex: 0 },
+                        down: { targetFaceIndex: 5 }
+                    }
+                };
                 
                 this.init();
+            }
+
+            loadConfig() {
+                if (this.homeMaster && this.homeMaster.editorConfig && this.homeMaster.editorConfig.navigationConfig) {
+                    const navConfig = this.homeMaster.editorConfig.navigationConfig;
+                    if (navConfig.navigationParameters) {
+                        for (const key in navConfig.navigationParameters) {
+                            if (this.config.navigationParameters[key] && navConfig.navigationParameters[key].hasOwnProperty('value')) {
+                                this.config.navigationParameters[key].value = navConfig.navigationParameters[key].value;
+                            }
+                        }
+                    }
+                    if (navConfig.edgeMappings) {
+                        this.config.edgeMappings = navConfig.edgeMappings;
+                    }
+                    console.log('🎲 DualNavigationSystem: Loaded navigation config from HomeMaster:', this.config);
+                } else {
+                    console.warn('🎲 DualNavigationSystem: Navigation config not found in HomeMaster. Using defaults.');
+                }
+
+                // Update bezel elements based on loaded config
+                this.updateBezelContent();
+            }
+
+            updateBezelContent() {
+                if (!this.config.edgeMappings) return;
+
+                for (const direction in this.config.edgeMappings) {
+                    const mapping = this.config.edgeMappings[direction];
+                    const bezelElement = document.querySelector(`.nav-bezel-${direction}`);
+                    if (bezelElement) {
+                        const titleEl = bezelElement.querySelector('.bezel-title');
+                        const subtitleEl = bezelElement.querySelector('.bezel-subtitle');
+                        if (titleEl && mapping.bezelTitle) titleEl.textContent = mapping.bezelTitle.toUpperCase();
+                        if (subtitleEl && mapping.bezelSubtitle) subtitleEl.textContent = mapping.bezelSubtitle;
+                        // Color can be applied if needed, e.g., bezelElement.style.setProperty('--bezel-color', mapping.color);
+                    }
+                }
             }
             
             init() {
                 console.log('🎲 Dual Navigation System initializing...');
-                
-                // CLICK/DRAG SUPPLEMENT TO SCROLL (not replacement)
+                this.loadConfig(); // Load config at initialization
+
                 this.tesseractContainer.addEventListener('mousedown', (e) => this.startDrag(e), { passive: false });
                 document.addEventListener('mousemove', (e) => this.handleDrag(e), { passive: false });
                 document.addEventListener('mouseup', () => this.endDrag(), { passive: false });
                 
-                // Touch drag events for mobile
                 this.tesseractContainer.addEventListener('touchstart', (e) => this.startDrag(e.touches[0]), { passive: false });
                 document.addEventListener('touchmove', (e) => this.handleDrag(e.touches[0]), { passive: false });
                 document.addEventListener('touchend', () => this.endDrag(), { passive: false });
                 
-                // REMOVED: Wheel scrolling - let main scroll system handle this
-                // this.tesseractContainer.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
-                
-                // Keyboard navigation
                 document.addEventListener('keydown', (e) => this.handleKeyboard(e));
                 
                 console.log('✅ Dual Navigation System ready - Tesseract folding + Scroll mechanics');
             }
             
-            // 🆕 CONTENT SWITCHING SYSTEM - Maintains VIB34D Architecture
             updateDynamicFaceContent(faceIndex) {
-                const geometryName = this.geometryStates[faceIndex];
-                const dynamicFace = this.dynamicFace;
+                const geometryName = this.geometryStates[faceIndex] || this.geometryStates[0];
                 
-                if (!dynamicFace) {
+                if (!this.dynamicFace) {
                     console.warn('Dynamic face not found');
                     return;
                 }
                 
                 console.log(`🔄 DYNAMIC CONTENT: Switching to ${geometryName} (face ${faceIndex})`);
                 
-                // 1. Update face data attributes for CSS targeting
-                dynamicFace.setAttribute('data-geometry', geometryName);
-                dynamicFace.setAttribute('data-face', faceIndex);
+                this.dynamicFace.setAttribute('data-geometry', geometryName);
+                this.dynamicFace.setAttribute('data-face', faceIndex.toString());
                 
-                // 2. Get content template for this geometry
                 const template = document.getElementById(`template-${geometryName}`);
                 if (template) {
-                    // 3. Update card content with geometry-specific content
                     this.updateCardContent(template);
                 }
                 
-                // 4. Update CSS class for layout targeting
-                const blogContainer = document.getElementById('blogContainer');
+                const blogContainer = this.dynamicFace.querySelector('.blog-container'); // More specific selector
                 if (blogContainer) {
-                    blogContainer.className = `blog-container layout-${geometryName}`;
+                    // Remove old layout classes
+                    this.geometryStates.forEach(geom => blogContainer.classList.remove(`layout-${geom}`));
+                    // Add new layout class
+                    blogContainer.classList.add(`layout-${geometryName}`);
                 }
                 
-                // 5. Trigger VIB34D geometry state change
+                // This call should ideally be handled by HomeMaster reacting to section change
+                // For now, keeping direct call to ensure visualizers update
                 this.triggerVIB34DGeometryChange(geometryName, faceIndex);
             }
             
             updateCardContent(template) {
-                // Update all cards with content from template
-                const cards = document.querySelectorAll('.blog-card .card-content');
+                const cards = this.dynamicFace.querySelectorAll('.blog-card .card-content');
                 cards.forEach((cardContent, index) => {
+                    const templateTitle = template.querySelector('.card-title')?.textContent;
+                    const templateSubtitle = template.querySelector('.card-subtitle')?.textContent;
+                    const templateArticle = template.querySelector('.article-content')?.textContent;
+
                     if (index === 0) { // Header card
                         const titleEl = cardContent.querySelector('.card-title, .blog-title');
-                        const subtitleEl = cardContent.querySelector('.card-subtitle, .card-subtitle');
-                        
-                        if (titleEl) titleEl.textContent = template.querySelector('.card-title')?.textContent || 'VIB3CODE';
-                        if (subtitleEl) subtitleEl.textContent = template.querySelector('.card-subtitle')?.textContent || 'Emergent Interface';
-                    } else if (index === 1) { // Main content card
-                        const contentEl = cardContent.querySelector('.article-content');
-                        if (contentEl) contentEl.textContent = template.querySelector('.article-content')?.textContent || 'Advanced Systems';
+                        const subtitleEl = cardContent.querySelector('.card-subtitle');
+                        if (titleEl) titleEl.textContent = templateTitle || 'VIB3CODE';
+                        if (subtitleEl) subtitleEl.textContent = templateSubtitle || 'Emergent Interface';
+                    } else if (index === 1) { // Main content card (example)
+                        const titleEl = cardContent.querySelector('.card-title');
+                        const subtitleEl = cardContent.querySelector('.card-subtitle');
+                        const articleEl = cardContent.querySelector('.article-content');
+                        if (titleEl) titleEl.textContent = templateTitle || 'Section Specific Title';
+                        if (subtitleEl) subtitleEl.textContent = templateSubtitle || 'Details about this section';
+                        if (articleEl) articleEl.innerHTML = templateArticle ? `<p>${templateArticle.replace(/\n/g, '</p><p>')}</p>` : '<p>Content for this section.</p>';
                     }
+                    // Add more specific card updates if needed for other cards
                 });
             }
             
             triggerVIB34DGeometryChange(geometryName, faceIndex) {
-                // Maintain full VIB34D parameter system integration
-                console.log(`🎨 VIB34D GEOMETRY: ${geometryName} (face ${faceIndex})`);
-                
-                // Update VIB34D geometry parameters for all visualizers
+                // This function might become redundant if HomeMaster + Bridge handle visualizer updates
+                console.log(`🎨 Triggering VIB34D GEOMETRY change for visualizers: ${geometryName} (face ${faceIndex})`);
                 if (window.morphingBlogSystem && window.morphingBlogSystem.visualizers) {
                     window.morphingBlogSystem.visualizers.forEach((viz, index) => {
                         if (viz && viz.setTheme) {
                             viz.setTheme(geometryName);
-                            console.log(`🎨 Visualizer ${index} → ${geometryName}`);
-                        }
-                    });
-                }
-                
-                // Update VIB34D Real WebGL instances
-                if (window.vib34dRealIntegration && window.vib34dRealIntegration.instances) {
-                    Object.keys(window.vib34dRealIntegration.instances).forEach(canvasId => {
-                        const instance = window.vib34dRealIntegration.instances[canvasId];
-                        if (instance && instance.updateGeometry) {
-                            instance.updateGeometry(geometryName);
-                            console.log(`🔮 WebGL ${canvasId} → ${geometryName}`);
                         }
                     });
                 }
             }
             
             startDrag(e) {
-                if (this.isTransitioning) return;
+                if (this.isTransitioning || !e) return;
                 
                 this.isDragging = true;
                 this.startX = e.clientX !== undefined ? e.clientX : e.pageX;
@@ -3088,437 +3125,277 @@
                 this.lastDragTime = performance.now();
                 this.isScrolling = false;
                 
-                // Check if we're near a bezel for tesseract mode
                 this.isBezelDrag = this.isNearBezel(this.startX, this.startY);
                 
-                // Visual feedback
+                if (this.isBezelDrag && this.homeMaster && this.homeMaster.editorConfig && this.homeMaster.editorConfig.navigationConfig) {
+                     const interactionEvents = this.homeMaster.editorConfig.navigationConfig.interactionEvents;
+                     if (interactionEvents && interactionEvents.dragStart) {
+                        this.homeMaster.registerInteraction(
+                            interactionEvents.dragStart.reaction,
+                            interactionEvents.dragStart.intensity
+                        );
+                     }
+                }
+
                 this.tesseractContainer.style.cursor = 'grabbing';
                 document.body.style.userSelect = 'none';
-                
                 console.log(`🎲 Drag started - Bezel mode: ${this.isBezelDrag}`);
             }
             
             isNearBezel(x, y) {
-                const bezelWidth = 80; // 80px from edges
+                const bezelW = this.config.navigationParameters.bezelWidth.value;
                 const windowWidth = window.innerWidth;
                 const windowHeight = window.innerHeight;
                 
-                return (x < bezelWidth || x > windowWidth - bezelWidth || 
-                        y < bezelWidth || y > windowHeight - bezelWidth);
+                return (x < bezelW || x > windowWidth - bezelW ||
+                        y < bezelW || y > windowHeight - bezelW);
             }
             
             handleDrag(e) {
                 if (!this.isDragging || this.isTransitioning || !e) return;
                 
-                // Safely prevent default if possible
-                if (e.preventDefault && typeof e.preventDefault === 'function') {
-                    e.preventDefault();
-                }
+                if (e.preventDefault && typeof e.preventDefault === 'function') e.preventDefault();
                 
-                // Handle both mouse and touch events
                 const clientX = e.clientX !== undefined ? e.clientX : e.pageX;
                 const clientY = e.clientY !== undefined ? e.clientY : e.pageY;
-                if (!clientX || !clientY) return;
+                if (clientX === undefined || clientY === undefined) return;
                 
                 const currentTime = performance.now();
                 const deltaTime = currentTime - this.lastDragTime;
-                const deltaX = clientX - this.startX;
-                const deltaY = clientY - this.startY;
+                const deltaX = (clientX - this.startX) * this.config.navigationParameters.dragSensitivity.value;
+                const deltaY = (clientY - this.startY) * this.config.navigationParameters.dragSensitivity.value;
                 const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
                 
-                // Calculate velocity for momentum
-                if (deltaTime > 0) {
-                    this.dragVelocity = distance / deltaTime;
-                }
+                if (deltaTime > 0) this.dragVelocity = distance / deltaTime;
                 
                 if (this.isBezelDrag) {
-                    // TESSERACT FOLDING MODE
                     this.handleTesseractDrag(deltaX, deltaY, distance);
                 } else {
-                    // SCROLL MODE  
                     this.handleScrollDrag(deltaX, deltaY);
                 }
-                
                 this.lastDragTime = currentTime;
             }
             
             handleTesseractDrag(deltaX, deltaY, distance) {
-                // Build tension based on drag distance
-                this.tensionLevel = Math.min(distance / 200, 1.0); // Max tension at 200px drag
-                
-                // PROPER ARCHITECTURE: Register interaction with HomeMaster (if available)
+                const dragThreshold = this.config.navigationParameters.dragThreshold.value;
+                this.tensionLevel = Math.min(distance / dragThreshold, 1.0) ; // Tension now reaches 1.0 at threshold
+
+                const foldDirection = this.determineFoldDirection(deltaX, deltaY);
+
                 if (this.homeMaster) {
-                    this.homeMaster.registerInteraction('cubeRotation', this.tensionLevel, 800);
+                    // More targeted interaction type for tension
+                    this.homeMaster.registerInteraction('cubeTension', this.tensionLevel, 200);
                 }
                 
-                // PROPER ARCHITECTURE: Update via ReactivityBridge (if available)
                 if (this.reactivityBridge) {
-                    this.reactivityBridge.triggerCubeNavigation(
-                        this.determineFoldDirection(deltaX, deltaY), 
-                        this.tensionLevel, 
-                        false
-                    );
-                } else {
-                    // Fallback: Direct CSS update
-                    document.documentElement.style.setProperty('--tension-intensity', this.tensionLevel.toString());
+                    this.reactivityBridge.triggerCubeNavigation(foldDirection, this.tensionLevel, false);
                 }
                 
-                // Add tension visual feedback
-                if (this.tensionLevel > 0.1) {
+                // Visual feedback for folding preparation (CSS classes)
+                if (this.tensionLevel > 0.3) { // Threshold to start showing fold hint
+                    this.prepareFold(foldDirection);
+                } else {
+                     this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down', 'tension-building');
+                }
+                 if (this.tensionLevel > 0.01) {
                     this.tesseractContainer.classList.add('tension-building');
                 } else {
                     this.tesseractContainer.classList.remove('tension-building');
                 }
-                
-                // Determine fold direction for visual preparation
-                if (this.tensionLevel > 0.3) {
-                    const direction = this.determineFoldDirection(deltaX, deltaY);
-                    this.prepareFold(direction);
-                }
-                
-                console.log(`🎲 Tesseract Tension: ${this.tensionLevel.toFixed(2)}, ΔX: ${deltaX}, ΔY: ${deltaY}`);
+
+                console.log(`🎲 Tesseract Tension: ${this.tensionLevel.toFixed(2)} -> ${foldDirection}`);
             }
             
             determineFoldDirection(deltaX, deltaY) {
                 const absX = Math.abs(deltaX);
                 const absY = Math.abs(deltaY);
-                
-                if (absX > absY) {
-                    return deltaX > 0 ? 'right' : 'left';
-                } else {
-                    return deltaY > 0 ? 'down' : 'up';
-                }
+                if (absX > absY) return deltaX > 0 ? 'right' : 'left';
+                return deltaY > 0 ? 'down' : 'up';
             }
             
             handleScrollDrag(deltaX, deltaY) {
-                // DRAG AS SCROLL SUPPLEMENT (works WITH main scroll system)
                 this.isScrolling = true;
-                
-                // Calculate scroll intensity
                 const scrollIntensity = Math.min(Math.abs(deltaY) / 50, 2.0);
-                const scrollVelocity = Math.abs(this.dragVelocity);
                 
-                // INTEGRATE WITH MAIN SCROLL SYSTEM
-                // Simulate scroll wheel events to work with existing scroll logic
-                const scrollEvent = new WheelEvent('wheel', {
-                    deltaY: deltaY * 2, // Amplify drag to scroll conversion
-                    bubbles: true,
-                    cancelable: true
-                });
-                
-                // Dispatch to main scroll system (but don't let it prevent default again)
-                setTimeout(() => {
-                    document.dispatchEvent(scrollEvent);
-                }, 0);
-                
-                // ADDITIONAL DRAG-SPECIFIC VISUAL EFFECTS
-                const allCards = document.querySelectorAll('.blog-card');
-                allCards.forEach((card, index) => {
-                    // Additional drag-specific scaling and rotation
-                    const dragEffect = `scale(${1.0 + scrollIntensity * 0.05}) rotateZ(${deltaX * 0.02}deg)`;
-                    card.style.filter = `brightness(${1.0 + scrollIntensity * 0.2})`;
-                    // Don't override the main scroll transform, just add effects
-                });
-                
-                // PROPER ARCHITECTURE: Register interaction with HomeMaster (if available)
+                // Pass to HomeMaster for generic scroll interaction
                 if (this.homeMaster) {
                     this.homeMaster.updateInteraction('scroll', {
-                        velocity: scrollIntensity,
-                        chaos: scrollVelocity * 0.5
+                        velocity: scrollIntensity, // Keep this for existing scroll effects
+                        rawDeltaY: deltaY, // Pass raw delta for more direct control if needed
+                        chaos: Math.abs(this.dragVelocity) * 0.5
                     });
                 }
-                
-                // PROPER ARCHITECTURE: Sync all layers via ReactivityBridge (if available)
-                if (this.reactivityBridge) {
-                    this.reactivityBridge.syncAllLayers();
-                }
-                
-                console.log(`📜 Drag-as-scroll supplement: ΔX: ${deltaX}, ΔY: ${deltaY}, velocity: ${this.dragVelocity.toFixed(2)}`);
+                 // This will trigger CSS updates via UnifiedReactivityBridge if it's listening to scroll related CSS vars
+                if (this.reactivityBridge) this.reactivityBridge.syncAllLayers();
+
+                console.log(`📜 Drag-as-scroll: ΔY: ${deltaY}, velocity: ${this.dragVelocity.toFixed(2)}`);
             }
             
             prepareFold(direction) {
-                // Remove previous fold classes
                 this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down');
-                
-                // Add new fold direction
                 this.tesseractContainer.classList.add(`folding-${direction}`);
             }
             
             endDrag() {
                 if (!this.isDragging) return;
-                
                 this.isDragging = false;
                 this.tesseractContainer.style.cursor = '';
                 document.body.style.userSelect = '';
-                
+
+                const dragThresholdToSnap = 0.7; // Configurable: how much tension needed to snap
+
                 if (this.isBezelDrag) {
-                    // TESSERACT MODE: Check if tension is high enough to trigger fold
-                    if (this.tensionLevel > 0.5) {
+                    if (this.tensionLevel >= dragThresholdToSnap) {
                         this.executeFold();
+                         if (this.homeMaster && this.homeMaster.editorConfig && this.homeMaster.editorConfig.navigationConfig) {
+                            const interactionEvents = this.homeMaster.editorConfig.navigationConfig.interactionEvents;
+                             if (interactionEvents && interactionEvents.dragComplete) {
+                                this.homeMaster.registerInteraction(
+                                    interactionEvents.dragComplete.reaction,
+                                    1.0, // Full intensity for completion
+                                    interactionEvents.dragComplete.duration
+                                );
+                             }
+                        }
                     } else {
-                        this.snapBack();
+                        this.snapBackTesseract();
                     }
                     console.log(`🎲 Tesseract drag ended - tension: ${this.tensionLevel.toFixed(2)}`);
-                } else {
-                    // SCROLL MODE: Apply momentum and smooth scrolling
+                } else if (this.isScrolling) {
                     this.applyScrollMomentum();
                     console.log(`📜 Scroll drag ended - velocity: ${this.dragVelocity.toFixed(2)}`);
                 }
+                this.tensionLevel = 0; // Reset tension
+                if (this.reactivityBridge) { // Ensure bridge updates visuals on drag end
+                    this.reactivityBridge.triggerCubeNavigation(this.determineFoldDirection(0,0), 0, true); // Reset tension visuals
+                }
+                 this.tesseractContainer.classList.remove('tension-building');
+
             }
             
             applyScrollMomentum() {
-                // Apply momentum based on drag velocity (restored method)
-                if (Math.abs(this.dragVelocity) > 0.5) {
-                    const momentum = this.dragVelocity * -200; // Convert to scroll distance
-                    this.scrollMomentum = momentum;
-                    
-                    // Smooth momentum animation
-                    this.animateScrollMomentum(300, () => {
-                        this.snapToCenter();
-                    });
-                } else {
-                    this.snapToCenter();
+                // Simplified: actual scroll momentum is complex and part of main scroll system.
+                // This just ensures any drag-induced scroll effects are reset.
+                if (this.homeMaster) {
+                    this.homeMaster.updateInteraction('scroll', { velocity: 0, chaos: 0 });
                 }
+                if (this.reactivityBridge) this.reactivityBridge.syncAllLayers();
+                this.isScrolling = false;
             }
-            
-            animateScrollMomentum(duration, callback) {
-                const startTime = performance.now();
-                const startMomentum = this.scrollMomentum;
-                
-                const animate = (currentTime) => {
-                    const elapsed = currentTime - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    // Cubic bezier easing for spring-like effect
-                    const easeProgress = 1 - Math.pow(1 - progress, 3);
-                    
-                    this.scrollMomentum = startMomentum * (1 - easeProgress);
-                    
-                    // Apply visual momentum effects
-                    const momentumIntensity = Math.abs(this.scrollMomentum) / 200;
-                    document.documentElement.style.setProperty('--scroll-momentum', momentumIntensity.toString());
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    } else if (callback) {
-                        callback();
-                    }
-                };
-                
-                requestAnimationFrame(animate);
-            }
-            
-            snapToCenter() {
-                // Smooth return to center position (restored method)
-                const duration = 600 * this.springStrength;
-                
-                this.animateScrollTo(0, duration);
-                
-                console.log(`📍 Snapping to center`);
-            }
-            
-            animateScrollTo(targetValue, duration, callback) {
-                const startTime = performance.now();
-                const startValue = parseFloat(document.documentElement.style.getPropertyValue('--scroll-momentum')) || 0;
-                const distance = targetValue - startValue;
-                
-                const animate = (currentTime) => {
-                    const elapsed = currentTime - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    // Cubic bezier easing for spring-like effect
-                    const easeProgress = 1 - Math.pow(1 - progress, 3);
-                    
-                    const currentValue = startValue + (distance * easeProgress);
-                    document.documentElement.style.setProperty('--scroll-momentum', currentValue.toString());
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    } else if (callback) {
-                        callback();
-                    }
-                };
-                
-                requestAnimationFrame(animate);
+
+            snapBackTesseract() {
+                this.tesseractContainer.classList.remove('tension-building', 'folding-left', 'folding-right', 'folding-up', 'folding-down');
+                // Tell the bridge to reset tension visuals
+                if (this.reactivityBridge) {
+                     this.reactivityBridge.triggerCubeNavigation(this.determineFoldDirection(0,0), 0, true);
+                }
+                console.log('🎲 Snapping back tesseract');
             }
             
             executeFold() {
+                if (this.isTransitioning) return;
                 this.isTransitioning = true;
                 
-                // Determine which face to switch to based on fold direction
-                let targetFace = this.currentFace;
-                
-                if (this.tesseractContainer.classList.contains('folding-right')) {
-                    targetFace = 1; // TECH
-                } else if (this.tesseractContainer.classList.contains('folding-left')) {
-                    targetFace = 3; // MEDIA
-                } else if (this.tesseractContainer.classList.contains('folding-up')) {
-                    targetFace = 4; // INNOVATION
-                } else if (this.tesseractContainer.classList.contains('folding-down')) {
-                    targetFace = 5; // CONTEXT
+                const foldDirection = this.tesseractContainer.classList.contains('folding-right') ? 'right' :
+                                      this.tesseractContainer.classList.contains('folding-left') ? 'left' :
+                                      this.tesseractContainer.classList.contains('folding-up') ? 'up' :
+                                      this.tesseractContainer.classList.contains('folding-down') ? 'down' : null;
+
+                if (!foldDirection || !this.config.edgeMappings[foldDirection]) {
+                    console.warn(`Invalid fold direction or mapping: ${foldDirection}`);
+                    this.isTransitioning = false;
+                    this.snapBackTesseract();
+                    return;
                 }
                 
-                // Execute the hypercube face transition
+                const targetFace = this.config.edgeMappings[foldDirection].targetFaceIndex;
+                
+                console.log(`🎲 Executing tesseract fold to face ${targetFace} (direction: ${foldDirection})`);
                 this.transitionToFace(targetFace);
-                
-                console.log(`🎲 Executing tesseract fold to face ${targetFace}`);
-            }
-            
-            snapBack() {
-                // Remove tension and fold classes
-                this.tesseractContainer.classList.remove('tension-building', 'folding-left', 'folding-right', 'folding-up', 'folding-down');
-                document.documentElement.style.setProperty('--tension-intensity', '0');
-                
-                console.log('🎲 Snapping back to current face');
             }
             
             transitionToFace(faceIndex) {
-                if (faceIndex === this.currentFace) {
-                    this.snapBack();
-                    this.isTransitioning = false;
+                if (faceIndex === this.currentFace && !this.isTransitioning) { // Ensure snapBack happens if same face
+                    this.snapBackTesseract();
+                    this.isTransitioning = false; // Ensure flag is reset
                     return;
                 }
                 
                 this.currentFace = faceIndex;
+
+                // Primary state change through HomeMaster
+                if (this.homeMaster) {
+                    this.homeMaster.transitionToSection(faceIndex); // Assuming faceIndex maps to sectionId
+                }
+
+                // Update local dynamic content (could also be driven by HomeMaster state change)
+                this.updateDynamicFaceContent(faceIndex);
                 
-                // Remove all fold classes and set final state
+                // Visual transition (CSS classes will handle animation)
+                // The actual animation is handled by CSS transitions on .hypercube-face transforms
+                // We just need to ensure the correct classes are set for the target state.
+                // The `folding-*` classes are for pre-visualization of the fold.
+                // The final state is achieved by the `active-face` logic and `data-geometry` styles.
+
+                // After CSS transition duration (approx 800ms from style)
                 setTimeout(() => {
                     this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down', 'tension-building');
-                    document.documentElement.style.setProperty('--tension-intensity', '0');
                     
-                    // Update dynamic face content and geometry state
-                    this.updateDynamicFaceContent(faceIndex);
-                    
-                    // 🔧 CRITICAL FIX: Update ALL visualizer geometry states for new face
-                    console.log(`🎨 FACE TRANSITION: Updating all visualizers for face ${faceIndex}`);
-                    
-                    // Update main content visualizers
-                    if (window.morphingBlogSystem && window.morphingBlogSystem.visualizers) {
-                        window.morphingBlogSystem.visualizers.forEach((viz, index) => {
-                            if (viz && viz.setTheme) {
-                                // Map face to geometry
-                                const faceGeometries = {
-                                    0: 'hypercube',    // HOME
-                                    1: 'tetrahedron',  // TECH  
-                                    2: 'wave',         // RESEARCH
-                                    3: 'sphere',       // MEDIA
-                                    4: 'fractal',      // INNOVATION
-                                    5: 'crystal',      // CONTEXT
-                                    6: 'klein',        // TORUS
-                                    7: 'torus'         // KLEIN
-                                };
-                                
-                                const newGeometry = faceGeometries[faceIndex] || 'hypercube';
-                                viz.setTheme(newGeometry);
-                                console.log(`🎨 Visualizer ${index} (${viz.canvasId}) → ${newGeometry}`);
-                            }
-                        });
+                    // Ensure all visualizers are synced via the bridge after transition
+                    if (this.reactivityBridge) {
+                        this.reactivityBridge.syncAllLayers();
                     }
-                    
-                    // Update VIB34D Real WebGL visualizers
-                    if (window.vib34dRealIntegration && window.vib34dRealIntegration.instances) {
-                        Object.keys(window.vib34dRealIntegration.instances).forEach(canvasId => {
-                            const instance = window.vib34dRealIntegration.instances[canvasId];
-                            if (instance && instance.updateGeometry) {
-                                const faceGeometries = {
-                                    0: 'hypercube', 1: 'tetrahedron', 2: 'wave', 3: 'sphere',
-                                    4: 'fractal', 5: 'crystal', 6: 'klein', 7: 'torus'
-                                };
-                                const newGeometry = faceGeometries[faceIndex] || 'hypercube';
-                                instance.updateGeometry(newGeometry);
-                                console.log(`🔮 WebGL ${canvasId} → ${newGeometry}`);
-                            }
-                        });
-                    }
-                    
+
                     this.isTransitioning = false;
-                    console.log(`🎲 Tesseract folded to face ${faceIndex}`);
-                }, 800);
-            }
-            
-            handleWheel(e) {
-                e.preventDefault();
-                
-                // Convert wheel delta to scroll effects
-                const sensitivity = 2.0;
-                const scrollAmount = e.deltaY * sensitivity;
-                
-                // Apply visual wheel scrolling effects
-                const scrollIntensity = Math.min(Math.abs(scrollAmount) / 100, 1.0);
-                document.documentElement.style.setProperty('--scroll-momentum', scrollIntensity.toString());
-                
-                // Auto-decay after wheel scrolling stops
-                clearTimeout(this.wheelTimeout);
-                this.wheelTimeout = setTimeout(() => {
-                    this.snapToCenter();
-                }, 150);
-                
-                console.log(`🎡 Wheel scroll: ${scrollAmount}, intensity: ${scrollIntensity.toFixed(2)}`);
+                    console.log(`🎲 Tesseract folded to face ${faceIndex}. Current section via HomeMaster: ${this.homeMaster ? this.homeMaster.masterState.activeSection : 'N/A'}`);
+                }, 800); // Match CSS transition time
             }
             
             handleKeyboard(e) {
-                if (this.isTransitioning) return;
-                
+                if (this.isTransitioning || !this.config.edgeMappings) return;
+                let targetFaceIndex = -1;
+
                 switch(e.key) {
                     case 'ArrowLeft':
                         e.preventDefault();
-                        this.transitionToFace(3); // MEDIA (LEFT)
+                        targetFaceIndex = this.config.edgeMappings.left?.targetFaceIndex;
                         break;
                     case 'ArrowRight':
                         e.preventDefault();
-                        this.transitionToFace(1); // TECH (RIGHT)
+                        targetFaceIndex = this.config.edgeMappings.right?.targetFaceIndex;
                         break;
                     case 'ArrowUp':
                         e.preventDefault();
-                        this.transitionToFace(4); // INNOVATION (TOP)
+                        targetFaceIndex = this.config.edgeMappings.up?.targetFaceIndex;
                         break;
                     case 'ArrowDown':
                         e.preventDefault();
-                        this.transitionToFace(5); // CONTEXT (BOTTOM)
+                        targetFaceIndex = this.config.edgeMappings.down?.targetFaceIndex;
                         break;
-                    case 'Home':
+                    case 'Home': case 'Escape':
                         e.preventDefault();
-                        this.transitionToFace(0); // HOME
+                        targetFaceIndex = this.config.edgeMappings.up?.targetFaceIndex; // Assuming 'up' is HOME
+                         if (targetFaceIndex === undefined) targetFaceIndex = 0; // Fallback to 0 if 'up' not mapped
                         break;
-                    case 'Escape':
-                        e.preventDefault();
-                        this.transitionToFace(0); // HOME
-                        break;
+                }
+
+                if (targetFaceIndex !== undefined && targetFaceIndex !== -1) {
+                    console.log(`⌨️ Keyboard navigation to face ${targetFaceIndex}`);
+                    this.isTransitioning = true; // Prevent overlapping transitions
+                    this.transitionToFace(targetFaceIndex);
                 }
             }
             
-            // Integration with editor dashboard
+            // Method for editor to update parameters (simplified)
             updateFromEditor(parameter, value) {
-                switch(parameter) {
-                    case 'springReturn':
-                        this.springStrength = value;
-                        break;
-                    case 'tensionThreshold':
-                        this.tensionThreshold = value;
-                        break;
-                    case 'dragSensitivity':
-                        this.dragSensitivity = value;
-                        break;
+                if (this.config.navigationParameters[parameter]) {
+                    this.config.navigationParameters[parameter].value = value;
+                    console.log(`🔧 Editor update: ${parameter} = ${value}`);
                 }
-            }
-            
-            getCurrentFace() {
-                return this.currentFace;
-            }
-            
-            getCurrentSection() {
-                return this.currentFace; // For compatibility
-            }
-            
-            getFaceName() {
-                const faceNames = ['HOME', 'TECH', 'RESEARCH', 'MEDIA', 'INNOVATION', 'CONTEXT'];
-                return faceNames[this.currentFace] || 'UNKNOWN';
-            }
-            
-            scrollToSection(sectionIndex) {
-                // For compatibility - convert to face transition
-                if (sectionIndex >= 0 && sectionIndex < this.faces.length) {
-                    this.transitionToFace(sectionIndex);
+                 // If mappings change, update bezels
+                if (parameter === 'edgeMappings') {
+                    this.config.edgeMappings = value;
+                    this.updateBezelContent();
                 }
             }
         }
