@@ -1632,7 +1632,9 @@
 
                 // Parameters that might affect 'this.instanceParams'
                 // These are usually role-based and set at init. Overriding them here needs care.
-                if (newParams.hasOwnProperty('instanceIntensity') && this.instanceParams) { // Renamed to avoid conflict with global intensity
+                if (newParams.hasOwnProperty('intensity') && this.instanceParams) { // Accept 'intensity' from bridge
+                    this.instanceParams.intensity = newParams.intensity;
+                } else if (newParams.hasOwnProperty('instanceIntensity') && this.instanceParams) { // Keep support for old name
                     this.instanceParams.intensity = newParams.instanceIntensity;
                 }
                  if (newParams.hasOwnProperty('instanceDensityMult') && this.instanceParams) {
@@ -3196,70 +3198,21 @@
             }
             
             updateDynamicFaceContent(faceIndex) {
-                const geometryName = this.geometryStates[faceIndex] || this.geometryStates[0];
-                
-                if (!this.dynamicFace) {
-                    console.warn('Dynamic face not found');
-                    return;
-                }
-                
-                console.log(`🔄 DYNAMIC CONTENT: Switching to ${geometryName} (face ${faceIndex})`);
-                
-                this.dynamicFace.setAttribute('data-geometry', geometryName);
-                this.dynamicFace.setAttribute('data-face', faceIndex.toString());
-                
-                const template = document.getElementById(`template-${geometryName}`);
-                if (template) {
-                    this.updateCardContent(template);
-                }
-                
-                const blogContainer = this.dynamicFace.querySelector('.blog-container'); // More specific selector
-                if (blogContainer) {
-                    // Remove old layout classes
-                    this.geometryStates.forEach(geom => blogContainer.classList.remove(`layout-${geom}`));
-                    // Add new layout class
-                    blogContainer.classList.add(`layout-${geometryName}`);
-                }
-                
-                // This call should ideally be handled by HomeMaster reacting to section change
-                // For now, keeping direct call to ensure visualizers update
-                // this.triggerVIB34DGeometryChange(geometryName, faceIndex); // Commented out: Bridge will handle this.
+                // THIS METHOD IS NOW DEPRECATED.
+                // The UnifiedReactivityBridge will handle DOM updates based on HomeMaster state.
+                console.log(`DualNavigationSystem.updateDynamicFaceContent for faceIndex ${faceIndex} is DEPRECATED. Bridge handles this.`);
             }
             
             updateCardContent(template) {
-                const cards = this.dynamicFace.querySelectorAll('.blog-card .card-content');
-                cards.forEach((cardContent, index) => {
-                    const templateTitle = template.querySelector('.card-title')?.textContent;
-                    const templateSubtitle = template.querySelector('.card-subtitle')?.textContent;
-                    const templateArticle = template.querySelector('.article-content')?.textContent;
-
-                    if (index === 0) { // Header card
-                        const titleEl = cardContent.querySelector('.card-title, .blog-title');
-                        const subtitleEl = cardContent.querySelector('.card-subtitle');
-                        if (titleEl) titleEl.textContent = templateTitle || 'VIB3CODE';
-                        if (subtitleEl) subtitleEl.textContent = templateSubtitle || 'Emergent Interface';
-                    } else if (index === 1) { // Main content card (example)
-                        const titleEl = cardContent.querySelector('.card-title');
-                        const subtitleEl = cardContent.querySelector('.card-subtitle');
-                        const articleEl = cardContent.querySelector('.article-content');
-                        if (titleEl) titleEl.textContent = templateTitle || 'Section Specific Title';
-                        if (subtitleEl) subtitleEl.textContent = templateSubtitle || 'Details about this section';
-                        if (articleEl) articleEl.innerHTML = templateArticle ? `<p>${templateArticle.replace(/\n/g, '</p><p>')}</p>` : '<p>Content for this section.</p>';
-                    }
-                    // Add more specific card updates if needed for other cards
-                });
+                // THIS METHOD IS NOW DEPRECATED.
+                // The UnifiedReactivityBridge will handle DOM updates based on HomeMaster state.
+                 console.log(`DualNavigationSystem.updateCardContent is DEPRECATED. Bridge handles this.`);
             }
             
             triggerVIB34DGeometryChange(geometryName, faceIndex) {
-                // This function might become redundant if HomeMaster + Bridge handle visualizer updates
-                console.log(`🎨 Triggering VIB34D GEOMETRY change for visualizers: ${geometryName} (face ${faceIndex})`);
-                if (window.morphingBlogSystem && window.morphingBlogSystem.visualizers) {
-                    window.morphingBlogSystem.visualizers.forEach((viz, index) => {
-                        if (viz && viz.setTheme) {
-                            viz.setTheme(geometryName);
-                        }
-                    });
-                }
+                // THIS METHOD IS NOW DEPRECATED.
+                // The UnifiedReactivityBridge will handle DOM updates based on HomeMaster state.
+                console.log(`DualNavigationSystem.triggerVIB34DGeometryChange for ${geometryName} is DEPRECATED. Bridge handles this.`);
             }
             
             startDrag(e) {
@@ -3331,27 +3284,17 @@
                 const foldDirection = this.determineFoldDirection(deltaX, deltaY);
 
                 if (this.homeMaster) {
-                    // More targeted interaction type for tension
-                    this.homeMaster.registerInteraction('cubeTension', this.tensionLevel, 200);
+                    // Register tension with HomeMaster. The specific interaction type 'cubeTension'
+                    // and its effects (like updating masterState.currentDragTension or masterState.isPortalling)
+                    // should be defined in the interaction presets loaded by HomeMaster.
+                    this.homeMaster.registerInteraction('cubeTension', this.tensionLevel, 200); // Duration might be optional or handled by preset
                 }
                 
-                if (this.reactivityBridge) {
-                    this.reactivityBridge.triggerCubeNavigation(foldDirection, this.tensionLevel, false);
-                }
-                
-                // Visual feedback for folding preparation (CSS classes)
-                if (this.tensionLevel > 0.3) { // Threshold to start showing fold hint
-                    this.prepareFold(foldDirection);
-                } else {
-                     this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down', 'tension-building');
-                }
-                 if (this.tensionLevel > 0.01) {
-                    this.tesseractContainer.classList.add('tension-building');
-                } else {
-                    this.tesseractContainer.classList.remove('tension-building');
-                }
+                // The UnifiedReactivityBridge will react to changes in HomeMaster's state (e.g., currentDragTension)
+                // to apply CSS changes like 'tension-building' class or --cube-tension variable.
+                // Direct DOM manipulation (classList.add/remove) and direct calls to reactivityBridge.triggerCubeNavigation are removed from here.
 
-                console.log(`🎲 Tesseract Tension: ${this.tensionLevel.toFixed(2)} -> ${foldDirection}`);
+                console.log(`🎲 Tesseract Tension reported to HomeMaster: ${this.tensionLevel.toFixed(2)} -> ${foldDirection}`);
             }
             
             determineFoldDirection(deltaX, deltaY) {
@@ -3413,11 +3356,16 @@
                     this.applyScrollMomentum();
                     console.log(`📜 Scroll drag ended - velocity: ${this.dragVelocity.toFixed(2)}`);
                 }
-                this.tensionLevel = 0; // Reset tension
-                if (this.reactivityBridge) { // Ensure bridge updates visuals on drag end
-                    this.reactivityBridge.triggerCubeNavigation(this.determineFoldDirection(0,0), 0, true); // Reset tension visuals
+                this.tensionLevel = 0; // Reset local tension state
+
+                // Inform HomeMaster that tension is now zero (or drag ended).
+                // This allows HomeMaster and subsequently the Bridge to reset any tension-related visual effects.
+                // A specific interaction type like 'cubeTensionEnd' or relying on 'cubeTension' with 0 intensity.
+                if (this.homeMaster) {
+                    this.homeMaster.registerInteraction('cubeTension', 0, 0); // Signal end of tension
                 }
-                 this.tesseractContainer.classList.remove('tension-building');
+                // CSS classes like 'tension-building' should be managed by the bridge based on homeMaster state.
+                // this.tesseractContainer.classList.remove('tension-building'); // REMOVED
 
             }
             
@@ -3432,12 +3380,20 @@
             }
 
             snapBackTesseract() {
-                this.tesseractContainer.classList.remove('tension-building', 'folding-left', 'folding-right', 'folding-up', 'folding-down');
-                // Tell the bridge to reset tension visuals
-                if (this.reactivityBridge) {
-                     this.reactivityBridge.triggerCubeNavigation(this.determineFoldDirection(0,0), 0, true);
+                // CSS classes 'tension-building', 'folding-left', etc., should be managed by the bridge
+                // based on homeMaster state. This method might become simpler or be removed if
+                // homeMaster state transitions automatically lead to the bridge updating CSS.
+                // For now, ensure homeMaster knows the fold was aborted.
+                if (this.homeMaster) {
+                    // Register an interaction indicating the fold attempt was aborted or snapped back.
+                    // This could be 'cubeSnapBack' or by setting 'cubeTension' to 0 if not already done in endDrag.
+                    this.homeMaster.registerInteraction('cubeSnapBack', 0, 100); // Example interaction
+                    if (this.tensionLevel !== 0) { // Ensure tension is reported as zero if snapback occurs before endDrag fully resets it
+                        this.homeMaster.registerInteraction('cubeTension', 0, 0);
+                        this.tensionLevel = 0;
+                    }
                 }
-                console.log('🎲 Snapping back tesseract');
+                console.log('🎲 Tesseract fold attempt snapped back. HomeMaster notified.');
             }
             
             executeFold() {
@@ -3475,33 +3431,38 @@
                 }
                 
                 // Update internal currentFace concept if it's used elsewhere, perhaps align with targetFaceIndexForVisuals
-                this.currentFace = targetFaceIndexForVisuals;
+                this.currentFace = targetFaceIndexForVisuals; // This might still be useful for local logic if any remains.
 
                 // Primary state change through HomeMaster
                 if (this.homeMaster) {
                     this.homeMaster.transitionToSection(homeMasterSectionKey);
+                    // Optionally, register a specific interaction for the fold completion itself,
+                    // if defined in interaction presets (e.g., for a sound effect or quick flash).
+                    // This is already handled in endDrag by calling 'dragComplete' interaction.
                 }
 
-                // Update local dynamic content using targetFaceIndexForVisuals
-                this.updateDynamicFaceContent(targetFaceIndexForVisuals);
+                // DOM updates (data-geometry, layout classes, content) are NOW THE RESPONSIBILITY OF UnifiedReactivityBridge
+                // reacting to homeMaster.masterState.activeSection changes.
+                // REMOVED: this.updateDynamicFaceContent(targetFaceIndexForVisuals);
 
-                // Visual transition (CSS classes will handle animation based on data-face, etc.)
-                // We just need to ensure the correct classes are set for the target state.
-                // The `folding-*` classes are for pre-visualization of the fold.
-                // The final state is achieved by the `active-face` logic and `data-geometry` styles.
+                // Visual transition CSS classes ('folding-*', 'tension-building') are also
+                // NOW THE RESPONSIBILITY OF UnifiedReactivityBridge.
+                // The setTimeout for cleanup is also removed as the bridge will manage state.
 
-                // After CSS transition duration (approx 800ms from style)
+                // The bridge's syncAllLayers or its reaction to homeMaster state change should handle
+                // updating visualizers and CSS.
+
+                // It's important that homeMaster.transitionToSection effectively signals the bridge.
+                // This might happen if the bridge polls homeMaster state or if homeMaster notifies the bridge.
+
+                // For now, we assume the transition takes roughly the same time.
+                // The isTransitioning flag prevents further input during this period.
                 setTimeout(() => {
-                    this.tesseractContainer.classList.remove('folding-left', 'folding-right', 'folding-up', 'folding-down', 'tension-building');
-                    
-                    // Ensure all visualizers are synced via the bridge after transition
-                    if (this.reactivityBridge) {
-                        this.reactivityBridge.syncAllLayers();
-                    }
-
                     this.isTransitioning = false;
-                    console.log(`🎲 Tesseract folded to face ${faceIndex}. Current section via HomeMaster: ${this.homeMaster ? this.homeMaster.masterState.activeSection : 'N/A'}`);
-                }, 800); // Match CSS transition time
+                    // No longer need to remove CSS classes here or call syncAllLayers directly,
+                    // as the bridge should manage the visual state based on homeMaster.
+                    console.log(`🎲 Tesseract fold initiated to sectionKey ${homeMasterSectionKey}. Visuals managed by Bridge. HomeMaster activeSection: ${this.homeMaster ? this.homeMaster.masterState.activeSection : 'N/A'}`);
+                }, 800); // Keep timeout for isTransitioning flag, aligned with expected CSS animation time.
             }
             
             handleKeyboard(e) {

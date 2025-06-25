@@ -599,48 +599,79 @@ class VIB3HomeMaster {
         };
 
         switch(type) {
-            case 'cubeRotation': // Existing, potentially keep or integrate with new ones
-                if (interactionConfig?.cubeNavigation?.enabled) {
-                    // This seems to affect mouseIntensity, which might be fine.
-                    // Or, cubeRotation could have its own entry in interactionPresets.
-                    const config = interactionConfig.cubeNavigation; // This is for nav parameters, not effects.
-                                                                    // Let's assume 'cubeRotation' directly influences a master state like 'rotationSpeedMultiplier'
-                    // this.masterState.rotationSpeedMultiplier = intensity; // Example
-                    console.log("Processing cubeRotation interaction - current logic updates mouseIntensity indirectly.");
-                    // The original logic:
-                     const tensionStrength = interactionConfig.cubeNavigation.tensionBuildup?.default || 0.02;
-                     this.updateInteraction('mouse', { intensity: intensity * tensionStrength });
-                }
-                break;
-
-            case 'tensionBuild': // From navigation-config.json, via DualNavigationSystem
-                if (interactionConfig?.tensionBuild?.enabled) {
-                    applyEffect(interactionConfig.tensionBuild, intensity);
-                    if (interactionConfig.tensionBuild.secondaryEffect) { // Handle secondary effect if defined
-                        applyEffect(interactionConfig.tensionBuild.secondaryEffect, intensity);
+            // Consolidating navigation-related interactions.
+            // These will rely on interactionPresets for their specific effects on masterState.
+            case 'dragStart': // New: Fired when bezel drag begins
+                if (interactionConfig?.dragStart?.enabled) {
+                    applyEffect(interactionConfig.dragStart, intensity); // Intensity might be 1.0 for start
+                    if (interactionConfig.dragStart.secondaryEffect) {
+                        applyEffect(interactionConfig.dragStart.secondaryEffect, intensity);
                     }
                 }
                 break;
 
-            case 'cubeTension': // From DualNavigationSystem
+            case 'cubeTension': // From DualNavigationSystem - represents ongoing tension
+                                // Presets should map this to masterState.currentDragTension
                 if (interactionConfig?.cubeTension?.enabled) {
-                    applyEffect(interactionConfig.cubeTension, intensity);
+                    applyEffect(interactionConfig.cubeTension, intensity); // intensity is the tension level
                      if (interactionConfig.cubeTension.secondaryEffect) {
                         applyEffect(interactionConfig.cubeTension.secondaryEffect, intensity);
                     }
+                } else { // Fallback if not explicitly defined in presets
+                    this.masterState.currentDragTension = intensity;
+                    if (intensity === 0) this.masterState.isPortalling = 0.0; // Reset portalling if tension is zero
                 }
                 break;
 
-            case 'portalTransitionEffect': // From navigation-config.json, via DualNavigationSystem
-                 if (interactionConfig?.portalTransitionEffect?.enabled) {
-                    applyEffect(interactionConfig.portalTransitionEffect, intensity);
-                     if (interactionConfig.portalTransitionEffect.secondaryEffect) {
-                        applyEffect(interactionConfig.portalTransitionEffect.secondaryEffect, intensity);
+            case 'dragComplete': // New: Fired when bezel drag completes successfully (fold occurs)
+                                 // Presets could map this to masterState.isPortalling = 1.0 for a duration
+                if (interactionConfig?.dragComplete?.enabled) {
+                    applyEffect(interactionConfig.dragComplete, intensity); // Intensity might be 1.0
+                    if (interactionConfig.dragComplete.secondaryEffect) {
+                        applyEffect(interactionConfig.dragComplete.secondaryEffect, intensity);
                     }
                 }
                 break;
 
-            case 'hover': // Existing
+            case 'cubeSnapBack': // New: Fired if a drag doesn't result in a fold
+                                 // Presets should ensure currentDragTension and isPortalling are reset
+                if (interactionConfig?.cubeSnapBack?.enabled) {
+                    applyEffect(interactionConfig.cubeSnapBack, intensity); // Intensity might be 0 or specific value
+                    if (interactionConfig.cubeSnapBack.secondaryEffect) {
+                        applyEffect(interactionConfig.cubeSnapBack.secondaryEffect, intensity);
+                    }
+                } else { // Fallback
+                    this.masterState.currentDragTension = 0.0;
+                    this.masterState.isPortalling = 0.0;
+                }
+                break;
+
+            // The 'portalTransitionEffect' type might be redundant if 'dragComplete' handles the start of the portal effect
+            // and 'cubeTension' at 0 handles its end. Or, it could be a specific effect triggered by 'dragComplete'.
+            // For now, let's assume 'dragComplete' preset handles setting masterState.isPortalling.
+            // case 'portalTransitionEffect':
+            //      if (interactionConfig?.portalTransitionEffect?.enabled) {
+            //         applyEffect(interactionConfig.portalTransitionEffect, intensity);
+            //          if (interactionConfig.portalTransitionEffect.secondaryEffect) {
+            //             applyEffect(interactionConfig.portalTransitionEffect.secondaryEffect, intensity);
+            //         }
+            //     }
+            //     break;
+
+            // Legacy/Other general interactions
+            case 'cubeRotation':
+                // This was an old way of handling it. Modern approach is via dragStart, cubeTension, dragComplete.
+                // This can be deprecated or mapped to the new system if still used.
+                // For now, keeping its original logic if a preset for 'cubeNavigation' exists.
+                if (interactionConfig?.cubeNavigation?.enabled) {
+                    const config = interactionConfig.cubeNavigation;
+                    console.log("Processing legacy cubeRotation interaction.");
+                    const tensionStrength = config.tensionBuildup?.default || 0.02;
+                    this.updateInteraction('mouse', { intensity: intensity * tensionStrength });
+                }
+                break;
+
+            case 'hover': // Existing general hover
                 if (interactionConfig?.hoverEffects?.enabled) {
                     const config = interactionConfig.hoverEffects;
                     const glowIntensity = config.glowIntensity?.default || 0.6;
