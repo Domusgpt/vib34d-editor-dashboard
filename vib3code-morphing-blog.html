@@ -1554,6 +1554,7 @@
                 this.transitionToParams = null; // Will hold target theme parameters during transition
 
                 this.chaosIntensity = 0.0; // Will be set by updateParameters
+                this.densityMultiplier = 1.0; // Default multiplier for ecosystem effects
                 
                 // instanceParams already assigned above - just add missing properties
                 this.gridVibrance = 1.0;
@@ -1643,6 +1644,12 @@
                 }
                 if (newParams.hasOwnProperty('instanceColorShift') && this.instanceParams) { // Renamed to avoid conflict
                     this.instanceParams.colorShift = newParams.instanceColorShift;
+                }
+
+                // For ecosystem effects like density changes
+                if (newParams.hasOwnProperty('densityMultiplier')) {
+                    this.densityMultiplier = newParams.densityMultiplier;
+                    // console.log(`Viz ${this.instanceId || this.role}: densityMultiplier set to ${this.densityMultiplier}`);
                 }
             }
             
@@ -2179,15 +2186,21 @@
                     };
                 }
                 // If no transition, paramsForUniforms already holds this.params correctly mapped.
+
+                // Apply densityMultiplier
+                paramsForUniforms.density *= (this.densityMultiplier !== undefined ? this.densityMultiplier : 1.0);
                 
                 const time = Date.now() - this.startTime;
                 
                 this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
                 this.gl.uniform1f(this.uniforms.time, time);
-                this.gl.uniform2f(this.uniforms.mouse, this.mouseX !== undefined ? this.mouseX : 0.5, this.mouseY !== undefined ? this.mouseY : 0.5); // Use internal mouse if set by updateParams, else default
+                // Use normalizedMouseXOnViz/Y if provided by updateParameters, otherwise current mouseX/Y (which might be stale or default)
+                const mouseXToUse = this.normalizedMouseXOnViz !== undefined ? this.normalizedMouseXOnViz : (this.mouseX !== undefined ? this.mouseX : 0.5);
+                const mouseYToUse = this.normalizedMouseYOnViz !== undefined ? this.normalizedMouseYOnViz : (this.mouseY !== undefined ? this.mouseY : 0.5);
+                this.gl.uniform2f(this.uniforms.mouse, mouseXToUse, mouseYToUse);
 
                 this.gl.uniform1f(this.uniforms.geometry, paramsForUniforms.geometry);
-                this.gl.uniform1f(this.uniforms.density, paramsForUniforms.density);
+                this.gl.uniform1f(this.uniforms.density, paramsForUniforms.density); // Already modulated by densityMultiplier
                 this.gl.uniform1f(this.uniforms.speed, paramsForUniforms.speed);
                 this.gl.uniform3fv(this.uniforms.color, new Float32Array(paramsForUniforms.color));
 

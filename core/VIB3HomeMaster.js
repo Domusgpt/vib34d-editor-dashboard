@@ -48,8 +48,12 @@ class VIB3HomeMaster {
             activeDragScrollElementId: null,
 
             // Visualizer-specific interaction states
-            hoveredVisualizerInfo: null, // { id, role, x, y }
-            clickedVisualizerInfo: null  // { id, role, x, y, button }, potentially timed/cleared
+            hoveredVisualizerInfo: null, // { id, role, x, y, clientX, clientY }
+            clickedVisualizerInfo: null,  // { id, role, x, y, button, eventType, timestamp }, potentially timed/cleared
+
+            // State for managing ecosystem effects on individual visualizers
+            visualizerParameterTargets: {}, // e.g., { vizId1: { densityMultiplier: { target: 0.5, current:1.0, startTime:0, duration:300, easing:'ease-out' } }, ... }
+            activeClickAnimation: null    // e.g., { visualizerId: string, phaseIndex: number, phaseStartTime: number, clickPreset: object }
         };
         
         // Section Modifiers - Relational mathematical relationships (configurable)
@@ -514,6 +518,64 @@ class VIB3HomeMaster {
                     // TODO: If needsSync and window.vib3Bridge, consider a targeted update for this element's scroll state
                     // For now, global syncAllLayers will pick it up, or rely on bridge's own update loop.
                 }
+
+                // Process visualizer parameter animations (e.g., for hover/click ecosystem effects)
+                for (const vizId in this.masterState.visualizerParameterTargets) {
+                    for (const paramName in this.masterState.visualizerParameterTargets[vizId]) {
+                        const anim = this.masterState.visualizerParameterTargets[vizId][paramName];
+                        if (anim && anim.startTime > 0) { // Animation is active
+                            const elapsedTime = currentTime - anim.startTime;
+                            let progress = Math.min(elapsedTime / anim.duration, 1.0);
+
+                            let easedProgress = this._applyEasing(progress, anim.easing);
+
+                            // For 'multiplyBase' operations, targetValue is the multiplier.
+                            // Current value should interpolate from its start (e.g. 1.0 for multiplier) to target multiplier.
+                            let startValue = (anim.operation === "multiplyBase" || paramName === 'densityMultiplier') ? 1.0 : (anim.initialValue !== undefined ? anim.initialValue : 0); // Assuming initialValue was stored or default to 0/1
+
+                            // If we didn't store initialValue when setting target, we assume transition is from a 'neutral' state for multipliers (1.0)
+                            // or from a zero-point for additive/set unless a 'current' was captured.
+                            // The 'current' in anim object is meant to be the animated value.
+                            if(anim.fromValue === undefined) anim.fromValue = anim.current; // Capture starting point of this animation segment
+
+
+                            if (anim.operation === "multiplyBase" || anim.operation === "set" || anim.operation === "add") { // Treat add like set for interpolation target
+                                anim.current = anim.fromValue + (anim.target - anim.fromValue) * easedProgress;
+                            }
+                            // Multiply operations might need different interpolation if 'value' is a factor e.g. current * (targetFactor - 1) * progress
+                            // The current setup for multiplyBase in presets implies target is the final multiplier.
+
+                            // console.log(`Animating ${vizId}.${paramName}: current=${anim.current.toFixed(2)}, progress=${easedProgress.toFixed(2)}`);
+
+                            if (progress >= 1.0) {
+                                anim.current = anim.target;
+                                anim.startTime = 0; // Mark as complete
+                                anim.fromValue = undefined; // Reset for next animation
+                                // console.log(`Animation complete for ${vizId}.${paramName}`);
+                            }
+                        }
+                    }
+                }
+
+                // Process active click animation phases
+                if (this.masterState.activeClickAnimation) {
+                    const animState = this.masterState.activeClickAnimation;
+                    const phaseConfig = animState.clickPreset.phases[animState.phaseIndex];
+                    if (phaseConfig && phaseConfig.animation) {
+                        const elapsedTime = currentTime - animState.phaseStartTime;
+                        if (elapsedTime >= (phaseConfig.animation.duration + (phaseConfig.animation.delay || 0))) {
+                            animState.phaseIndex++;
+                            if (animState.phaseIndex < animState.clickPreset.phases.length) {
+                                // Apply next phase's initial targets
+                                this._applyClickAnimationPhase(animState);
+                            } else {
+                                // Animation complete
+                                // console.log(`Click animation fully complete for ${animState.visualizerId}`);
+                                this.masterState.activeClickAnimation = null;
+                            }
+                        }
+                    }
+                }
                 
                 this.lastUpdateTime = currentTime;
             }
@@ -845,82 +907,188 @@ class VIB3HomeMaster {
         console.log('🔄 VIB3HomeMaster reset to baseline state');
     }
 
+    _applyEasing(t, easingFunction = "linear") {
+        switch (easingFunction) {
+            case "ease-out": return 1 - Math.pow(1 - t, 3); // Cubic ease-out
+            case "ease-in": return t * t * t; // Cubic ease-in
+            case "ease-in-out": return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            default: return t; // linear
+        }
+    }
+
+    _setVisualizerParameterTarget(vizId, paramName, targetValue, duration, easing, operation = "set") {
+        if (!this.masterState.visualizerParameterTargets[vizId]) {
+            this.masterState.visualizerParameterTargets[vizId] = {};
+        }
+
+        const currentParamState = this.masterState.visualizerParameterTargets[vizId][paramName];
+        let currentValue = currentParamState ? currentParamState.current : undefined;
+
+        // If currentValue is undefined, try to get it from the visualizer's base theme or default
+        // This part is tricky as HomeMaster doesn't directly know viz's current state before bridge sync.
+        // For densityMultiplier, we assume a base of 1.0 if not set.
+        if (currentValue === undefined && paramName === 'densityMultiplier') {
+            currentValue = 1.0;
+        }
+        // For other params, a more robust initial value fetching might be needed if not simply 'setting'.
+
+        this.masterState.visualizerParameterTargets[vizId][paramName] = {
+            current: currentValue !== undefined ? currentValue : targetValue, // Start from current if known, else jump to target (or handle better)
+            target: targetValue,
+            startTime: performance.now(),
+            duration: duration || 300, // Default duration if not specified
+            easing: easing || "linear",
+            operation: operation
+        };
+         // console.log(`Set target for ${vizId}.${paramName}:`, this.masterState.visualizerParameterTargets[vizId][paramName]);
+    }
+
+
     handleVisualizerInteraction(data) {
         // data: { type, elementId, canvasRole, normalizedX, normalizedY, clientX, clientY, button, timestamp }
-        // console.log('VIB3HomeMaster: handleVisualizerInteraction', data);
+        const prevHoveredId = this.masterState.hoveredVisualizerInfo?.id;
 
         switch (data.type) {
             case 'mousemove':
-            case 'touchstart': // Treat touchstart like hover for setting hovered info
+            case 'touchstart':
             case 'touchmove':
                 this.masterState.hoveredVisualizerInfo = {
-                    id: data.elementId,
-                    role: data.canvasRole,
-                    x: data.normalizedX,
-                    y: data.normalizedY,
-                    clientX: data.clientX, // Store raw screen coords too if needed
-                    clientY: data.clientY
+                    id: data.elementId, role: data.canvasRole, x: data.normalizedX, y: data.normalizedY,
+                    clientX: data.clientX, clientY: data.clientY
                 };
-                // Note: A 'mouseleave' or 'touchend' equivalent from the visualizer would be needed
-                // to reliably set hoveredVisualizerInfo to null. This could be inferred if no
-                // mousemove/touchmove events are received for a certain period from any visualizer,
-                // or if a global mousemove is outside all known visualizer bounds.
-                // For now, it just stores the last hovered.
+
+                if (prevHoveredId !== data.elementId) {
+                    const hoverPreset = this.editorConfig?.interactionPresets?.visualizerHoverEcosystem;
+                    if (hoverPreset?.enabled) {
+                        // Apply observer effect to previously hovered (if any) - revert to normal
+                        if (prevHoveredId && this.masterState.visualizerParameterTargets[prevHoveredId]) {
+                            this._setVisualizerParameterTarget(
+                                prevHoveredId,
+                                hoverPreset.observerEffect.parameterToChange,
+                                1.0, // Assuming 1.0 is the "normal" multiplier
+                                hoverPreset.animation.duration,
+                                hoverPreset.animation.easingFunction,
+                                "set" // or use operation from preset if it makes sense for revert
+                            );
+                        }
+
+                        // Apply target effect to newly hovered element
+                        this._setVisualizerParameterTarget(
+                            data.elementId,
+                            hoverPreset.targetEffect.parameterToChange,
+                            hoverPreset.targetEffect.value, // e.g., 0.5
+                            hoverPreset.animation.duration,
+                            hoverPreset.animation.easingFunction,
+                            hoverPreset.targetEffect.operation // e.g., "multiplyBase" or "set"
+                        );
+
+                        // Apply observer effect to all other visualizers
+                        // This requires knowing all visualizer IDs. For now, this is conceptual.
+                        // We'd iterate window.morphingBlogSystem.visualizers or similar.
+                        // This part needs a list of all active visualizer IDs.
+                        // For simplicity, this example won't apply observer effects in this pass.
+                        // We'll focus on the target and clearing the previous hover.
+                        console.log(`Hover effect triggered for ${data.elementId}. Conceptual observer effects for others.`);
+                    }
+                }
                 break;
 
-            // It might be useful to distinguish mousedown from click for some effects.
             case 'mousedown':
-                // Could set a temporary "pressed" state or trigger immediate press effects
-                this.masterState.clickedVisualizerInfo = { // Overwrite or update for press-hold-release cycle
-                    id: data.elementId,
-                    role: data.canvasRole,
-                    x: data.normalizedX,
-                    y: data.normalizedY,
-                    button: data.button,
-                    eventType: 'mousedown',
-                    timestamp: data.timestamp
+                this.masterState.clickedVisualizerInfo = {
+                    id: data.elementId, role: data.canvasRole, x: data.normalizedX, y: data.normalizedY,
+                    button: data.button, eventType: 'mousedown', timestamp: data.timestamp
                 };
-                // Example: Trigger a short-lived effect, maybe via registerInteraction
-                // this.registerInteraction('visualizerPressEffect', 1.0, 100);
+                // Logic for "press" part of click can go here if distinct from full "click"
                 break;
 
-            case 'click': // A full click event
+            case 'click':
                 this.masterState.clickedVisualizerInfo = {
-                    id: data.elementId,
-                    role: data.canvasRole,
-                    x: data.normalizedX,
-                    y: data.normalizedY,
-                    button: data.button,
-                    eventType: 'click',
-                    timestamp: data.timestamp
+                    id: data.elementId, role: data.canvasRole, x: data.normalizedX, y: data.normalizedY,
+                    button: data.button, eventType: 'click', timestamp: data.timestamp
                 };
-                // Example: Trigger a different effect for a completed click
-                // this.registerInteraction('visualizerClickEffect', 1.0, 300);
 
-                // Consider clearing clickedVisualizerInfo after a short delay or on next interaction
-                // if it's meant to be a momentary event signal.
-                // For now, it just stores the last click.
+                const clickPreset = this.editorConfig?.interactionPresets?.visualizerClickEcosystem;
+                if (clickPreset?.enabled && clickPreset.phases && clickPreset.phases.length > 0) {
+                    this.masterState.activeClickAnimation = {
+                        visualizerId: data.elementId,
+                        phaseIndex: 0,
+                        phaseStartTime: performance.now(),
+                        clickPreset: clickPreset // Store the whole preset for easy access to phases
+                    };
+                    // Initial application of phase 0 targets
+                    this._applyClickAnimationPhase(this.masterState.activeClickAnimation);
+                    console.log(`Click animation started for ${data.elementId}, phase 0.`);
+                }
                 break;
 
             case 'mouseup':
             case 'touchend':
-                // If tracking a press-hold-release cycle, 'mouseup' or 'touchend' would complete it.
-                // Could clear a "pressed" state if one was set on mousedown.
-                // If this.masterState.clickedVisualizerInfo was set on mousedown and matches this elementId,
-                // we could augment it or clear it.
-                if (this.masterState.clickedVisualizerInfo && this.masterState.clickedVisualizerInfo.id === data.elementId && this.masterState.clickedVisualizerInfo.eventType === 'mousedown') {
-                    // It's a mouseup following a mousedown on the same visualizer
-                    // console.log(`Visualizer ${data.elementId} released.`);
-                    // Potentially clear or update clickedVisualizerInfo if it's for press state
+                // Could clear hoveredVisualizerInfo if no other touches are active, or if mouse leaves canvas.
+                // This requires more complex global mouse/touch tracking.
+                // For now, hover state persists until a new hover occurs.
+                if (this.masterState.hoveredVisualizerInfo && this.masterState.hoveredVisualizerInfo.id === data.elementId && data.type === 'touchend') {
+                     // Conceptual: if this was the last touch, clear hover.
+                     // This is simplified as we don't have full multi-touch tracking here.
+                     // Also, on mouse systems, mouseleave is needed.
+                     const hoverPreset = this.editorConfig?.interactionPresets?.visualizerHoverEcosystem;
+                     if (hoverPreset?.enabled) {
+                         this._setVisualizerParameterTarget(
+                             data.elementId, // The one that was just 'touchend'-ed
+                             hoverPreset.observerEffect.parameterToChange, // Revert to observer (normal) state
+                             1.0, // Assuming 1.0 is normal
+                             hoverPreset.animation.duration,
+                             hoverPreset.animation.easingFunction,
+                             "set"
+                         );
+                     }
+                    // this.masterState.hoveredVisualizerInfo = null; // This would make it flicker if another finger still on it.
                 }
-                // For touchend, it might also clear hoveredVisualizerInfo if no other touches active
-                // This part needs more sophisticated logic if precise mouseleave/touchend on visualizer is required
-                // For now, hoveredVisualizerInfo stays until another visualizer is hovered.
                 break;
 
             default:
                 console.warn(`VIB3HomeMaster: Unhandled visualizerInteraction type: ${data.type}`, data);
         }
+    }
+
+    _applyClickAnimationPhase(animationState) {
+        if (!animationState || !animationState.clickPreset || !animationState.clickPreset.phases) return;
+
+        const phaseConfig = animationState.clickPreset.phases[animationState.phaseIndex];
+        if (!phaseConfig) {
+            // console.log("Click animation complete or invalid phase for " + animationState.visualizerId);
+            this.masterState.activeClickAnimation = null; // End animation
+            return;
+        }
+
+        console.log(`Applying click animation phase ${animationState.phaseIndex} for ${animationState.visualizerId}`);
+        animationState.phaseStartTime = performance.now(); // Reset start time for this phase
+
+        // Apply to target
+        if (phaseConfig.targetEffect) {
+            this._setVisualizerParameterTarget(
+                animationState.visualizerId,
+                phaseConfig.targetEffect.parameterToChange,
+                phaseConfig.targetEffect.value,
+                phaseConfig.animation.duration,
+                phaseConfig.animation.easingFunction,
+                phaseConfig.targetEffect.operation || "set"
+            );
+        }
+
+        // Apply to observers (conceptual - needs list of all visualizer IDs)
+        // For each other visualizerId:
+        // if (phaseConfig.observerEffect) {
+        //     this._setVisualizerParameterTarget(
+        //         otherVisualizerId,
+        //         phaseConfig.observerEffect.parameterToChange,
+        //         phaseConfig.observerEffect.value,
+        //         phaseConfig.animation.duration,
+        //         phaseConfig.animation.easingFunction,
+        //         phaseConfig.observerEffect.operation || "set"
+        //     );
+        // }
+        // For now, only target is animated in this simplified example for click.
+        // A full ecosystem click would require iterating all visualizers.
     }
 }
 

@@ -860,6 +860,25 @@ class UnifiedReactivityBridge {
             // isCurrentlyClicked: (ms.clickedVisualizerInfo?.id === vizInfo.id && ms.clickedVisualizerInfo?.eventType === 'mousedown'), // if tracking press
         };
 
+        // Add animated parameters from visualizerParameterTargets
+        const vizTargets = ms.visualizerParameterTargets?.[vizInfo.id];
+        if (vizTargets) {
+            for (const paramName in vizTargets) {
+                if (vizTargets[paramName] && vizTargets[paramName].hasOwnProperty('current')) {
+                    paramsForVisualizers[paramName] = vizTargets[paramName].current;
+                } else {
+                     // If only target is set but no animation state, pass target, or default.
+                     // This case should ideally be handled by HomeMaster initializing .current
+                    paramsForVisualizers[paramName] = vizTargets[paramName].target !== undefined ? vizTargets[paramName].target : 1.0; // Default e.g. for multipliers
+                }
+            }
+        } else {
+            // Default values for parameters if no specific targets (e.g., for densityMultiplier)
+            if (paramsForVisualizers.densityMultiplier === undefined) { // Check if not already set by a global override
+                 paramsForVisualizers.densityMultiplier = 1.0; // Default if no animation target
+            }
+        }
+
         // Clean up undefined properties - this loop is fine as a general safeguard
         for (const key in paramsForVisualizers) {
             if (paramsForVisualizers[key] === undefined) {

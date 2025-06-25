@@ -202,6 +202,44 @@
         },
         "label": "Cube Fold Transition Effect",
         "description": "Visual effect when a cube fold transition is committed."
+      },
+      "visualizerHoverEcosystem": {
+        "enabled": true,
+        "label": "Visualizer Hover Ecosystem Effect",
+        "description": "Coordinated reaction when a visualizer is hovered.",
+        "targetEffect": {
+          "parameterToChange": "densityMultiplier",
+          "value": 0.5, "operation": "multiplyBase",
+          "note": "e.g., baseDensity * 0.5. Assumes densityMultiplier is a new property on viz, default 1."
+        },
+        "observerEffect": {
+          "parameterToChange": "densityMultiplier",
+          "value": 1.25, "operation": "multiplyBase",
+          "note": "e.g., baseDensity * 1.25"
+        },
+        "animation": {
+          "duration": 300,
+          "easingFunction": "ease-out"
+        }
+      },
+      "visualizerClickEcosystem": {
+        "enabled": true,
+        "label": "Visualizer Click Ecosystem Effect",
+        "description": "Multi-phase coordinated reaction on visualizer click.",
+        "phases": [
+          {
+            "name": "phase1_Impact",
+            "targetEffect": { "parameterToChange": "densityMultiplier", "value": 2.0, "operation": "multiplyBase" },
+            "observerEffect": { "parameterToChange": "densityMultiplier", "value": 0.5, "operation": "multiplyBase" },
+            "animation": { "duration": 200, "easingFunction": "ease-in" }
+          },
+          {
+            "name": "phase2_Normalization",
+            "targetEffect": { "parameterToChange": "densityMultiplier", "value": 1.0, "operation": "multiplyBase" },
+            "observerEffect": { "parameterToChange": "densityMultiplier", "value": 1.0, "operation": "multiplyBase" },
+            "animation": { "duration": 400, "easingFunction": "ease-out", "delay": 50 }
+          }
+        ]
       }
     },
     "visualEffects": {
