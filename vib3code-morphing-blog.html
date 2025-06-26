@@ -1186,7 +1186,7 @@
         <div class="blog-card" id="blog-card-1">
             <canvas class="card-visualizer" id="card-visualizer-1"></canvas>
             <div class="card-content">
-                <!-- Content for blog-card-1 will be dynamically rendered -->
+                <!-- Dynamic Content -->
             </div>
             <div class="card-buttons-container" id="blog-card-1-buttons-container"></div>
         </div>
@@ -1195,7 +1195,7 @@
         <div class="blog-card" id="blog-card-2">
             <canvas class="card-visualizer" id="card-visualizer-2"></canvas>
             <div class="card-content">
-                <!-- Content for blog-card-2 will be dynamically rendered -->
+                <!-- Dynamic Content -->
             </div>
             <div class="card-buttons-container" id="blog-card-2-buttons-container"></div>
         </div>
@@ -1204,7 +1204,7 @@
         <div class="blog-card" id="blog-card-3">
             <canvas class="card-visualizer" id="card-visualizer-3"></canvas>
             <div class="card-content">
-                <!-- Content for blog-card-3 will be dynamically rendered -->
+                <!-- Dynamic Content -->
             </div>
             <div class="card-buttons-container" id="blog-card-3-buttons-container"></div>
         </div>
@@ -1310,52 +1310,6 @@
             </div>
         </div>
         
-        
-        <!-- HIDDEN CONTENT TEMPLATES FOR 8 GEOMETRY STATES (No longer used by DualNavigationSystem) -->
-        <!--
-        <div id="content-templates" style="display: none;">
-            <div id="template-hypercube" data-geometry="hypercube">
-                <div class="card-title">VIB3CODE</div>
-                <div class="card-subtitle">Emergent Interface Architecture</div>
-                <div class="article-content">The Foundational Trinity</div>
-            </div>
-            <div id="template-tetrahedron" data-geometry="tetrahedron">
-                <div class="card-title">TECH STACK</div>
-                <div class="card-subtitle">Geometric Precision Systems</div>
-                <div class="article-content">Advanced Technical Documentation</div>
-            </div>
-            <div id="template-wave" data-geometry="wave">
-                <div class="card-title">RESEARCH</div>
-                <div class="card-subtitle">Probability Wave Functions</div>
-                <div class="article-content">Experimental Development</div>
-            </div>
-            <div id="template-sphere" data-geometry="sphere">
-                <div class="card-title">MEDIA</div>
-                <div class="card-subtitle">Infinite Potential</div>
-                <div class="article-content">Content & Communication</div>
-            </div>
-            <div id="template-fractal" data-geometry="fractal">
-                <div class="card-title">INNOVATION</div>
-                <div class="card-subtitle">Recursive Growth Patterns</div>
-                <div class="article-content">Mandelbulb Development</div>
-            </div>
-            <div id="template-crystal" data-geometry="crystal">
-                <div class="card-title">CONTEXT</div>
-                <div class="card-subtitle">Ordered Complexity</div>
-                <div class="article-content">Settings & Configuration</div>
-            </div>
-            <div id="template-klein" data-geometry="klein">
-                <div class="card-title">KLEIN</div>
-                <div class="card-subtitle">Non-Orientable Topology</div>
-                <div class="article-content">Boundary Transcendence</div>
-            </div>
-            <div id="template-torus" data-geometry="torus">
-                <div class="card-title">TORUS</div>
-                <div class="card-subtitle">Flow & Circulation</div>
-                <div class="article-content">Continuous Creation</div>
-            </div>
-        </div>
-        -->
         
             </div> <!-- Close scroll-wrapper -->
         </div> <!-- Close dynamic-face -->
@@ -2330,81 +2284,7 @@
                 this.layoutNames = ['HOME', 'TECH', 'MEDIA', 'INNOVATION', 'RESEARCH'];
                 this.layoutClasses = ['layout-home', 'layout-tech', 'layout-media', 'layout-innovation', 'layout-research'];
                 
-                // State-specific blog content - Now superseded by presets/site-content.json
-                /*
-                this.stateContent = [
-                    { // HOME - Traditional Blog
-                        header: { title: 'VIB3CODE', subtitle: 'Emergent Interface Architecture' },
-                        featured: { 
-                            title: 'The Foundational Trinity', 
-                            subtitle: 'Core Architecture Principles',
-                            content: 'VIB3STYLEPACK emerges from three foundational principles that define emergent interface architecture: Home-Master control systems, Portal scroll transitions, and Multi-element geometry language.\n\nHome-Master Control: Every visualizer responds to a central authority that maintains visual coherence across 13 synchronized instances. Mathematical precision creates living, breathing interfaces.',
-                            tag: 'Architecture'
-                        },
-                        sidebar: {
-                            title: 'Navigation',
-                            subtitle: 'Article Categories',
-                            content: '→ Technical Architecture\n→ Visual Mathematics\n→ Innovation Showcase\n→ Research Papers\n→ Community'
-                        }
-                    },
-                    { // TECH - Documentation Style
-                        header: { title: 'VIB3CODE DOCS', subtitle: 'Technical Documentation' },
-                        featured: {
-                            title: 'API Reference',
-                            subtitle: 'Implementation Guide',
-                            content: 'Complete technical documentation for implementing VIB3STYLEPACK in production environments.\n\nGeometry Configuration:\n```javascript\nconst config = {\n  geometry: "tetrahedron",\n  density: 12.0,\n  precision: "enhanced"\n};\n```\n\nThe tetrahedron geometry provides maximum structural precision for technical interfaces.',
-                            tag: 'Technical'
-                        },
-                        sidebar: {
-                            title: 'Table of Contents',
-                            subtitle: 'Documentation Sections',
-                            content: '1. Getting Started\n2. Core Concepts\n3. API Reference\n4. Examples\n5. Best Practices'
-                        }
-                    },
-                    { // MEDIA - Magazine Style
-                        header: { title: 'VIB3 MAGAZINE', subtitle: 'Visual Innovation Showcase' },
-                        featured: {
-                            title: 'Infinite Potential',
-                            subtitle: 'Sphere-Based Media Gallery',
-                            content: 'Exploring the visual possibilities of spherical coordinate systems in media presentation. Each sphere represents infinite creative potential.',
-                            tag: 'Visual'
-                        },
-                        sidebar: {
-                            title: 'Featured Gallery',
-                            subtitle: 'Latest Visual Works',
-                            content: 'Interactive Spheres\nDynamic Galleries\nImmersive Experiences\nCreative Showcases'
-                        }
-                    },
-                    { // INNOVATION - Creative Flow
-                        header: { title: 'INNOVATION LAB', subtitle: 'Organic Growth Systems' },
-                        featured: {
-                            title: 'Mandelbulb Evolution',
-                            subtitle: 'Fractal Growth Patterns',
-                            content: 'How 3D Mandelbrot fractals create organic, flowing details representing chaotic growth and innovation. The intersection of mathematical beauty and interface design.',
-                            tag: 'Innovation'
-                        },
-                        sidebar: {
-                            title: 'Growth Metrics',
-                            subtitle: 'Innovation Tracking',
-                            content: 'Complexity: Evolving\nGrowth Rate: Organic\nPattern: Fractal\nDepth: Infinite'
-                        }
-                    },
-                    { // RESEARCH - Academic Style
-                        header: { title: 'RESEARCH PAPERS', subtitle: 'Academic Publications' },
-                        featured: {
-                            title: 'Wave Interference Patterns',
-                            subtitle: 'Quantum UI Research',
-                            content: 'Abstract: This paper explores the application of quantum wave interference patterns to user interface design, creating probability-based interaction zones.\n\nMethodology: Using mathematical wave functions to create dynamic UI elements that respond to user interaction probability distributions.',
-                            tag: 'Research'
-                        },
-                        sidebar: {
-                            title: 'Citation Index',
-                            subtitle: 'Related Papers',
-                            content: '[1] Quantum UI Theory\n[2] Probability Interfaces\n[3] Wave Function UX'
-                        }
-                    }
-                ];
-                */
+                // State-specific blog content - Now superseded by presets/site-content.json and DualNavigationSystem
                 
                 this.initialize();
             }
@@ -2465,7 +2345,7 @@
                 this.setupStateControls(); // This is already commented out internally
                 // this.setupScrolling(); // Commented out to disable old scroll logic
                 this.startRenderLoop();
-                // this.updateContent(); // Superseded by DualNavigationSystem dynamic rendering
+                // this.updateContent(); // Superseded by DualNavigationSystem dynamic rendering and now removed
                 
                 console.log(`✅ Morphing Blog System ready - ${this.visualizers.length} visualizers with dynamic content`);
             }
@@ -3003,19 +2883,8 @@
             //     this.triggerStateTransition(stateIndex);
             // }
             
-            /*
-            // updateContent and related methods are superseded by DualNavigationSystem.updateDynamicFaceContent
-            // and the new JSON-driven content system.
-            updateContent() {
-                // ... old code ...
-            }
-            updateStateSpecificContent() {
-                // ... old code ...
-            }
-            formatContent(content) {
-                // ... old code ...
-            }
-            */
+            // updateContent, updateStateSpecificContent, and formatContent are now removed as they are superseded
+            // by DualNavigationSystem.updateDynamicFaceContent and the JSON-driven content system.
             
             startRenderLoop() {
                 const render = () => {
