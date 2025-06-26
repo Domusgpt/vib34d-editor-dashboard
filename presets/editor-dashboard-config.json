@@ -351,6 +351,93 @@
             }
           ]
         }
+      },
+      "globalMouseEffects": {
+        "enabled": true,
+        "inputSource": "window",
+        "maxDistance": 1.0,
+        "baseSensitivity": 1.0,
+        "effects": [
+          {
+            "id": "boardParallax",
+            "enabled": true,
+            "type": "parallax",
+            "targetElement": "#visualizer-board",
+            "parameters": {
+              "translateX": {
+                "inputAxis": "x",
+                "inputMultiplier": -1,
+                "maxOffset": "15px",
+                "smoothingFactor": 0.08
+              },
+              "translateY": {
+                "inputAxis": "y",
+                "inputMultiplier": -1,
+                "maxOffset": "10px",
+                "smoothingFactor": 0.08
+              }
+            }
+          },
+          {
+            "id": "boardVizAngleShift",
+            "enabled": true,
+            "type": "visualizerParameter",
+            "targetVisualizerId": "board-visualizer-instance",
+            "parameters": [
+              {
+                "name": "viewAngleOffsetX",
+                "inputAxis": "x",
+                "inputMultiplier": 0.2,
+                "maxChange": 0.05,
+                "baseValue": 0.0,
+                "smoothingFactor": 0.1
+              },
+              {
+                "name": "viewAngleOffsetY",
+                "inputAxis": "y",
+                "inputMultiplier": -0.2,
+                "maxChange": 0.05,
+                "baseValue": 0.0,
+                "smoothingFactor": 0.1
+              }
+            ]
+          },
+          {
+            "id": "ambientGlowIntensity",
+            "enabled": true,
+            "type": "cssVariable",
+            "variableName": "--global-ambient-glow-intensity",
+            "parameters": {
+              "value": {
+                "inputAxis": "distanceFromCenter",
+                "inputMultiplier": 1,
+                "maxChange": 0.3,
+                "baseValue": 0.0,
+                "smoothingFactor": 0.05
+              }
+            }
+          },
+          {
+            "id": "mainContentSubtleShift",
+            "enabled": false,
+            "type": "parallax",
+            "targetElement": "#page-content-scroll-area",
+            "parameters": {
+              "translateX": {
+                "inputAxis": "x",
+                "inputMultiplier": -0.05,
+                "maxOffset": "5px",
+                "smoothingFactor": 0.12
+              },
+              "translateY": {
+                "inputAxis": "y",
+                "inputMultiplier": -0.05,
+                "maxOffset": "3px",
+                "smoothingFactor": 0.12
+              }
+            }
+          }
+        ]
       }
     },
     "visualEffects": {

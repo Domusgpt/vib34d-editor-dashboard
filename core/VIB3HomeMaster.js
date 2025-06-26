@@ -80,7 +80,15 @@ class VIB3HomeMaster {
                 observerCardsEffect: null, // { from:{}, current:{}, target:{}, startTime, duration, easing }
                 pageOverlay: null, // { fromOpacity, currentOpacity, targetOpacity, backgroundColor, startTime, duration, easing }
             },
-            emergingButtonsStates: {}, // Keyed by buttonId: { cardId, preset, isVisible, animation: {} }
+            emergingButtonsStates: {}, // Keyed by buttonId: { cardId, preset, isVisible, animation: {} },
+
+            // Global Mouse Effects State
+            globalMouseX: 0.5, // Normalized X (0 left, 1 right), window-relative
+            globalMouseY: 0.5, // Normalized Y (0 top, 1 bottom), window-relative
+            lastGlobalMouseActivityTime: 0, // Timestamp of the last mouse move event
+            globalMouseEffectsState: {}, // Stores current animated values for global effects
+                                         // e.g., { effectId: { paramName: { current, target, baseValue, smoothingFactor }, ... } }
+            globalMouseIdleTimeout: 2000, // ms before global mouse effects start reverting
         };
         
         // Section Modifiers - Relational mathematical relationships (configurable)
@@ -418,8 +426,13 @@ class VIB3HomeMaster {
      */
     updateInteraction(type, data) {
         switch(type) {
-            case 'mouse':
-                this.masterState.mouseIntensity = Math.min(1.0, data.intensity);
+            case 'mouse': // This case is for global mouse data
+                this.masterState.mouseIntensity = Math.min(1.0, data.intensity); // Overall activity intensity
+                this.masterState.globalMouseX = data.x; // Normalized X (0-1, left to right)
+                this.masterState.globalMouseY = data.y; // Normalized Y (0-1, top to bottom by Bridge, but often shaders expect 0 bottom, 1 top)
+                                                        // Let's assume data.y is 0 top, 1 bottom from Bridge for consistency here.
+                this.masterState.lastGlobalMouseActivityTime = performance.now();
+                this._updateGlobalMouseEffectTargets();
                 break;
                 
             case 'click':
@@ -650,6 +663,53 @@ class VIB3HomeMaster {
 
                 const now = currentTime; // Consistent time for this frame's updates
 
+                // Process Global Mouse Effects animations
+                const globalMouseConfig = this.editorConfig?.interactionPresets?.globalMouseEffects;
+                if (globalMouseConfig?.enabled) {
+                    // Check for mouse inactivity to revert effects
+                    if (now - (this.masterState.lastGlobalMouseActivityTime || 0) > (this.masterState.globalMouseIdleTimeout || 2000)) {
+                        this._revertGlobalMouseEffectTargets();
+                    }
+
+                    for (const effectId in this.masterState.globalMouseEffectsState) {
+                        const effectState = this.masterState.globalMouseEffectsState[effectId];
+                        for (const paramKey in effectState) { // e.g., translateX, viewAngleOffsetX_value
+                            const paramAnim = effectState[paramKey];
+                            if (paramAnim.target !== undefined && paramAnim.current !== paramAnim.target) {
+                                paramAnim.current += (paramAnim.target - paramAnim.current) * paramAnim.smoothingFactor;
+                                if (Math.abs(paramAnim.current - paramAnim.target) < 0.001) { // Threshold to snap
+                                    paramAnim.current = paramAnim.target;
+                                }
+
+                                // If this global effect targets a visualizer parameter, update visualizerParameterTargets
+                                // This assumes effectId might be complex like "effectPresetId_paramName" or similar,
+                                // or we find the original effect preset to know its type and targetVisualizerId.
+                                const originalEffectPreset = globalMouseConfig.effects.find(eff => eff.id === effectId);
+                                if (originalEffectPreset?.type === 'visualizerParameter') {
+                                    const vizParamPreset = originalEffectPreset.parameters.find(p => p.name === paramKey); // paramKey should be the actual viz param name
+                                    if (vizParamPreset) {
+                                         this._setVisualizerParameterTarget(
+                                            originalEffectPreset.targetVisualizerId,
+                                            paramKey, // This should be the actual parameter name like 'viewAngleOffsetX'
+                                            paramAnim.current, // Target for this animation frame is the current smoothed value
+                                            this.updateInterval, // Duration until next frame approx
+                                            'linear', // Easing for this small step
+                                            'set' // Operation
+                                        );
+                                        // Ensure the visualizerParameterTargets reflects the immediate 'current' value for bridge pickup
+                                        if(this.masterState.visualizerParameterTargets[originalEffectPreset.targetVisualizerId] && this.masterState.visualizerParameterTargets[originalEffectPreset.targetVisualizerId][paramKey]){
+                                            this.masterState.visualizerParameterTargets[originalEffectPreset.targetVisualizerId][paramKey].current = paramAnim.current;
+                                            this.masterState.visualizerParameterTargets[originalEffectPreset.targetVisualizerId][paramKey].target = paramAnim.current; // Target this immediate value
+                                            this.masterState.visualizerParameterTargets[originalEffectPreset.targetVisualizerId][paramKey].startTime = 0; // Mark as no further animation needed by this system
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+
                 // Process Card Focus Mode Animations
                 if (this.masterState.focusedCardId) {
                     const anims = this.masterState.focusModeAnimation;
@@ -662,8 +722,6 @@ class VIB3HomeMaster {
                         const easedProgress = this._applyEasing(progress, anim.easing);
 
                         for (const key in anim.target) {
-                            // Ensure 'from' is populated if not already. This is a fallback.
-                            // A more robust solution would capture 'from' values when animation starts.
                             if (anim.from[key] === undefined) {
                                 anim.from[key] = this.masterState.cardDomEffects[this.masterState.focusedCardId]?.[key]?.current || this._getDefaultDomEffectValue(key, true);
                             }
@@ -672,19 +730,19 @@ class VIB3HomeMaster {
 
                             if (typeof targetVal === 'number' && typeof fromVal === 'number') {
                                 anim.current[key] = fromVal + (targetVal - fromVal) * easedProgress;
-                            } else { // For string values like 'auto', 'fixed', colors - apply at end or start
+                            } else {
                                 anim.current[key] = progress < 0.5 ? fromVal : targetVal;
                                 if (progress === 1.0) anim.current[key] = targetVal;
                             }
                         }
                         if (progress >= 1.0) {
-                            anim.current = { ...anim.target }; // Ensure target is met
-                            anim.startTime = 0; // Mark as complete
+                            anim.current = { ...anim.target };
+                            anim.startTime = 0;
                             if (anim.onComplete) anim.onComplete();
                         }
                     }
 
-                    // Observer Cards Animation (applied as a general effect, bridge will filter)
+                    // Observer Cards Animation
                     if (anims.observerCardsEffect && anims.observerCardsEffect.startTime > 0) {
                         const anim = anims.observerCardsEffect;
                         const elapsed = now - anim.startTime;
@@ -735,11 +793,10 @@ class VIB3HomeMaster {
                     const btnState = this.masterState.emergingButtonsStates[buttonId];
                     if (btnState.animation?.opacity && btnState.animation.opacity.startTime > 0 && now >= btnState.animation.opacity.startTime) {
                         const anim = btnState.animation.opacity;
-                        // Ensure fromValue is set if not already (e.g. if animation started right away without explicit set)
                         if (anim.fromValue === undefined) anim.fromValue = 0;
 
-                        const elapsed = now - anim.startTime; // startTime already includes delay
-                        const timeSinceAnimStart = Math.max(0, elapsed); // Ensure non-negative for progress calc
+                        const elapsed = now - anim.startTime;
+                        const timeSinceAnimStart = Math.max(0, elapsed);
                         const progress = Math.min(timeSinceAnimStart / anim.duration, 1.0);
                         const easedProgress = this._applyEasing(progress, anim.easing);
 
@@ -749,7 +806,7 @@ class VIB3HomeMaster {
 
                         if (progress >= 1.0) {
                             anim.current = anim.target;
-                            anim.startTime = 0; // Mark as complete
+                            anim.startTime = 0;
                             if (anim.target === 0) btnState.isVisible = false;
                             if (anim.onComplete) anim.onComplete();
                         }
@@ -1850,6 +1907,98 @@ class VIB3HomeMaster {
         return { r:0, g:0, b:0, a: (colorString === 'transparent' ? 0 : 1) };
     }
     // --- End Card Focus Mode Logic ---
+
+    // --- Global Mouse Effects Logic ---
+    _updateGlobalMouseEffectTargets() {
+        const globalMouseConfig = this.editorConfig?.interactionPresets?.globalMouseEffects;
+        if (!globalMouseConfig?.enabled || !this.editorConfig) return;
+
+        const mouseX = this.masterState.globalMouseX; // Normalized 0-1
+        const mouseY = this.masterState.globalMouseY; // Normalized 0-1
+
+        globalMouseConfig.effects.forEach(effectPreset => {
+            if (!effectPreset.enabled) {
+                // If effect is disabled, ensure its targets are set to base/neutral
+                this._revertSpecificGlobalMouseEffect(effectPreset.id);
+                return;
+            }
+
+            if (!this.masterState.globalMouseEffectsState[effectPreset.id]) {
+                this.masterState.globalMouseEffectsState[effectPreset.id] = {};
+            }
+            const effectState = this.masterState.globalMouseEffectsState[effectPreset.id];
+
+            const processParameter = (paramConfig, paramKey) => {
+                let inputValue = 0;
+                // Determine input value based on axis (0-1 range from mouseX/Y, or -0.5 to 0.5 for centered)
+                switch (paramConfig.inputAxis) {
+                    case 'x': inputValue = mouseX - 0.5; break; // Centered: -0.5 to 0.5
+                    case 'y': inputValue = mouseY - 0.5; break; // Centered: -0.5 to 0.5
+                    case 'distanceFromCenterX': inputValue = Math.abs(mouseX - 0.5) * 2; break; // 0 to 1
+                    case 'distanceFromCenterY': inputValue = Math.abs(mouseY - 0.5) * 2; break; // 0 to 1
+                    case 'distanceFromCenter':
+                        inputValue = Math.sqrt(Math.pow(mouseX - 0.5, 2) + Math.pow(mouseY - 0.5, 2)) * 2; // Approx 0 to 1.414, clamp or normalize via maxDistance
+                        inputValue = Math.min(inputValue / (globalMouseConfig.maxDistance || 1.0), 1.0); // Normalize
+                        break;
+                    default: inputValue = 0;
+                }
+
+                inputValue *= (paramConfig.inputMultiplier || 1.0) * (globalMouseConfig.baseSensitivity || 1.0);
+
+                let targetValue;
+                if (effectPreset.type === 'parallax' && typeof paramConfig.maxOffset === 'string') {
+                    const offsetValue = parseFloat(paramConfig.maxOffset);
+                    // For parallax, target is the direct offset. Base is implicitly 0.
+                    targetValue = inputValue * offsetValue;
+                    // Units like 'px' or '%' will be handled by the bridge. Store unit with target or have bridge assume.
+                    // Let's assume for now HomeMaster stores numeric value, bridge adds unit from preset.
+                } else {
+                    // For visualizer params and CSS vars, it's maxChange from a baseValue
+                    targetValue = (paramConfig.baseValue || 0) + inputValue * paramConfig.maxChange;
+                }
+
+                if (!effectState[paramKey]) {
+                    effectState[paramKey] = { current: paramConfig.baseValue || 0, target: paramConfig.baseValue || 0, smoothingFactor: paramConfig.smoothingFactor || 0.1, baseValue: paramConfig.baseValue || 0 };
+                }
+                effectState[paramKey].target = targetValue;
+                effectState[paramKey].smoothingFactor = paramConfig.smoothingFactor || 0.1; // Ensure smoothingFactor is set
+                effectState[paramKey].baseValue = paramConfig.baseValue || 0; // Ensure baseValue is set
+            };
+
+            if (effectPreset.type === 'parallax' || effectPreset.type === 'cssVariable') {
+                // These types have a single 'parameters' object, where keys are 'translateX', 'translateY', or 'value'
+                for (const paramName in effectPreset.parameters) { // e.g. paramName is 'translateX' or 'value'
+                    processParameter(effectPreset.parameters[paramName], paramName);
+                }
+            } else if (effectPreset.type === 'visualizerParameter') {
+                // This type has an array of 'parameters'
+                effectPreset.parameters.forEach(vizParamConfig => {
+                    processParameter(vizParamConfig, vizParamConfig.name); // paramKey is vizParamConfig.name
+                });
+            }
+        });
+    }
+
+    _revertGlobalMouseEffectTargets() {
+        const globalMouseConfig = this.editorConfig?.interactionPresets?.globalMouseEffects;
+        if (!globalMouseConfig?.enabled) return;
+
+        globalMouseConfig.effects.forEach(effectPreset => {
+            if (effectPreset.enabled) { // Only revert enabled effects
+               this._revertSpecificGlobalMouseEffect(effectPreset.id);
+            }
+        });
+    }
+
+    _revertSpecificGlobalMouseEffect(effectId) {
+        const effectState = this.masterState.globalMouseEffectsState[effectId];
+        if (effectState) {
+            for (const paramKey in effectState) {
+                effectState[paramKey].target = effectState[paramKey].baseValue;
+            }
+        }
+    }
+    // --- End Global Mouse Effects Logic ---
 }
 
 export default VIB3HomeMaster;

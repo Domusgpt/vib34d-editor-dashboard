@@ -1690,7 +1690,8 @@
                 const directParams = [
                     'gridVibrance', 'sectionFocus', 'portalIntensity',
                     'microChaos', 'inverseFlow', 'contentGravityX', 'contentGravityY',
-                    'contentFlowStrength', 'textProximity', 'chaosIntensity'
+                    'contentFlowStrength', 'textProximity', 'chaosIntensity',
+                    'viewAngleOffsetX', 'viewAngleOffsetY' // Added new params
                     // 'intensity' from instanceParams might be overridden if passed
                 ];
 
@@ -1982,6 +1983,8 @@
                     uniform float u_contentFlowStrength;
                     uniform float u_textProximity;
                     uniform float u_overallOpacity; // New uniform for master-controlled opacity
+                    uniform float u_viewAngleOffsetX; // For global mouse effects
+                    uniform float u_viewAngleOffsetY; // For global mouse effects
                     
                     mat4 rotateXW(float theta) {
                         float c = cos(theta);
@@ -2084,10 +2087,12 @@
                         
                         float time = u_time * 0.0008 * u_speed * u_instanceSpeed;
                         
-                        // Enhanced 4D rotation with portal effects
+                        // Enhanced 4D rotation with portal effects and view angle offsets
                         vec4 p4d = vec4(uv, sin(time * 0.2) * 0.3, cos(time * 0.15) * 0.3);
-                        p4d = rotateXW(time * (0.3 + u_portalIntensity * 0.5)) * p4d;
-                        p4d = rotateYW(time * (0.2 + u_microChaos * 0.3)) * p4d;
+                        float angleXW = time * (0.3 + u_portalIntensity * 0.5) + u_viewAngleOffsetX;
+                        float angleYW = time * (0.2 + u_microChaos * 0.3) + u_viewAngleOffsetY;
+                        p4d = rotateXW(angleXW) * p4d;
+                        p4d = rotateYW(angleYW) * p4d;
                         
                         vec3 p = project4Dto3D(p4d);
                         
@@ -2167,7 +2172,9 @@
                     contentGravity: this.gl.getUniformLocation(this.program, 'u_contentGravity'),
                     contentFlowStrength: this.gl.getUniformLocation(this.program, 'u_contentFlowStrength'),
                     textProximity: this.gl.getUniformLocation(this.program, 'u_textProximity'),
-                    overallOpacity: this.gl.getUniformLocation(this.program, 'u_overallOpacity') // Add new uniform location
+                    overallOpacity: this.gl.getUniformLocation(this.program, 'u_overallOpacity'),
+                    viewAngleOffsetX: this.gl.getUniformLocation(this.program, 'u_viewAngleOffsetX'),
+                    viewAngleOffsetY: this.gl.getUniformLocation(this.program, 'u_viewAngleOffsetY')
                 };
             }
             
@@ -2336,7 +2343,9 @@
                     this.contentGravityY !== undefined ? this.contentGravityY : 0.5);
                 this.gl.uniform1f(this.uniforms.contentFlowStrength, this.contentFlowStrength !== undefined ? this.contentFlowStrength : 0.0);
                 this.gl.uniform1f(this.uniforms.textProximity, this.textProximity !== undefined ? this.textProximity : 0.0);
-                this.gl.uniform1f(this.uniforms.overallOpacity, this.overallOpacity !== undefined ? this.overallOpacity : 1.0); // Set new uniform
+                this.gl.uniform1f(this.uniforms.overallOpacity, this.overallOpacity !== undefined ? this.overallOpacity : 1.0);
+                this.gl.uniform1f(this.uniforms.viewAngleOffsetX, this.viewAngleOffsetX !== undefined ? this.viewAngleOffsetX : 0.0);
+                this.gl.uniform1f(this.uniforms.viewAngleOffsetY, this.viewAngleOffsetY !== undefined ? this.viewAngleOffsetY : 0.0);
                 
                 this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
             }

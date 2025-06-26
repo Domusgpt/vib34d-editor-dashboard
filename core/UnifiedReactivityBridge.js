@@ -1051,6 +1051,40 @@ class UnifiedReactivityBridge {
             }
             // --- END CARD FOCUS MODE SYNCHRONIZATION ---
 
+            // --- GLOBAL MOUSE EFFECTS SYNCHRONIZATION ---
+            const globalMouseConfig = this.homeMaster.editorConfig?.interactionPresets?.globalMouseEffects;
+            if (globalMouseConfig?.enabled && ms.globalMouseEffectsState) {
+                globalMouseConfig.effects.forEach(effectPreset => {
+                    if (!effectPreset.enabled || !ms.globalMouseEffectsState[effectPreset.id]) return;
+
+                    const effectState = ms.globalMouseEffectsState[effectPreset.id];
+
+                    if (effectPreset.type === 'parallax') {
+                        const targetElement = document.querySelector(effectPreset.targetElement);
+                        if (targetElement) {
+                            let transformString = "";
+                            for (const paramName in effectPreset.parameters) { // e.g., translateX, translateY
+                                if (effectState[paramName]?.current !== undefined) {
+                                    const value = effectState[paramName].current;
+                                    const unit = String(effectPreset.parameters[paramName].maxOffset).replace(/[0-9.-]/g, '') || 'px'; // Extract unit or default to px
+                                    transformString += `${paramName}(${value.toFixed(2)}${unit}) `;
+                                }
+                            }
+                            targetElement.style.transform = transformString.trim();
+                        }
+                    } else if (effectPreset.type === 'cssVariable') {
+                        // 'value' is the key under effectState for cssVariable type, as defined in HomeMaster
+                        if (effectState.value?.current !== undefined) {
+                            this.updateCSSProperty(effectPreset.variableName, effectState.value.current.toFixed(3));
+                        }
+                    }
+                    // 'visualizerParameter' types are handled by HomeMaster updating visualizerParameterTargets,
+                    // which are then picked up by getWebGLParameters -> syncAllLayers.
+                });
+            }
+            // --- END GLOBAL MOUSE EFFECTS SYNCHRONIZATION ---
+
+
             requestAnimationFrame(update);
         };
 
