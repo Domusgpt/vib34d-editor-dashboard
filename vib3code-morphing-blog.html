@@ -1186,10 +1186,7 @@
         <div class="blog-card" id="blog-card-1">
             <canvas class="card-visualizer" id="card-visualizer-1"></canvas>
             <div class="card-content">
-                <div class="blog-header">
-                    <div class="blog-title" id="blog-title">VIB3CODE</div>
-                    <div class="card-subtitle" id="header-subtitle">Emergent Interface Architecture</div>
-                </div>
+                <!-- Content for blog-card-1 will be dynamically rendered -->
             </div>
             <div class="card-buttons-container" id="blog-card-1-buttons-container"></div>
         </div>
@@ -1198,18 +1195,7 @@
         <div class="blog-card" id="blog-card-2">
             <canvas class="card-visualizer" id="card-visualizer-2"></canvas>
             <div class="card-content">
-                <div class="card-title" id="card-title-2">The Foundational Trinity</div>
-                <div class="card-subtitle" id="card-subtitle-2">Core Architecture Principles</div>
-                <div class="article-content" id="article-content-2">
-                    <p>VIB3STYLEPACK emerges from three foundational principles that define emergent interface architecture: Home-Master control systems, Portal scroll transitions, and Multi-element geometry language.</p>
-                    <h3>Home-Master Control</h3>
-                    <p>Every visualizer responds to a central authority that maintains visual coherence across 13 synchronized instances. Mathematical precision creates living, breathing interfaces.</p>
-                    <div class="code-block">geometry: hypercube, density: 12.0, dimension: 3.5</div>
-                </div>
-                <div class="article-meta">
-                    <span class="tag">Architecture</span>
-                    <span>2025-06-22</span>
-                </div>
+                <!-- Content for blog-card-2 will be dynamically rendered -->
             </div>
             <div class="card-buttons-container" id="blog-card-2-buttons-container"></div>
         </div>
@@ -1218,16 +1204,7 @@
         <div class="blog-card" id="blog-card-3">
             <canvas class="card-visualizer" id="card-visualizer-3"></canvas>
             <div class="card-content">
-                <div class="card-title" id="card-title-3">Geometric Lexicon</div>
-                <div class="card-subtitle" id="card-subtitle-3">8 Mathematical Forms</div>
-                <div class="article-content" id="article-content-3">
-                    <p>Expanding beyond basic shapes into advanced fractal forms including Menger Sponge and Mandelbulb geometries.</p>
-                    <p>Using Signed Distance Fields to unlock vast new territories of visual complexity while maintaining 60fps performance.</p>
-                </div>
-                <div class="article-meta">
-                    <span class="tag">Mathematics</span>
-                    <span>2025-06-21</span>
-                </div>
+                <!-- Content for blog-card-3 will be dynamically rendered -->
             </div>
             <div class="card-buttons-container" id="blog-card-3-buttons-container"></div>
         </div>
@@ -1334,66 +1311,51 @@
         </div>
         
         
-        <!-- HIDDEN CONTENT TEMPLATES FOR 8 GEOMETRY STATES -->
+        <!-- HIDDEN CONTENT TEMPLATES FOR 8 GEOMETRY STATES (No longer used by DualNavigationSystem) -->
+        <!--
         <div id="content-templates" style="display: none;">
-            
-            <!-- Template 0: HYPERCUBE (HOME) -->
             <div id="template-hypercube" data-geometry="hypercube">
                 <div class="card-title">VIB3CODE</div>
                 <div class="card-subtitle">Emergent Interface Architecture</div>
                 <div class="article-content">The Foundational Trinity</div>
             </div>
-            
-            <!-- Template 1: TETRAHEDRON (TECH) -->
             <div id="template-tetrahedron" data-geometry="tetrahedron">
                 <div class="card-title">TECH STACK</div>
                 <div class="card-subtitle">Geometric Precision Systems</div>
                 <div class="article-content">Advanced Technical Documentation</div>
             </div>
-            
-            <!-- Template 2: WAVE (RESEARCH) -->
             <div id="template-wave" data-geometry="wave">
                 <div class="card-title">RESEARCH</div>
                 <div class="card-subtitle">Probability Wave Functions</div>
                 <div class="article-content">Experimental Development</div>
             </div>
-            
-            <!-- Template 3: SPHERE (MEDIA) -->
             <div id="template-sphere" data-geometry="sphere">
                 <div class="card-title">MEDIA</div>
                 <div class="card-subtitle">Infinite Potential</div>
                 <div class="article-content">Content & Communication</div>
             </div>
-            
-            <!-- Template 4: FRACTAL (INNOVATION) -->
             <div id="template-fractal" data-geometry="fractal">
                 <div class="card-title">INNOVATION</div>
                 <div class="card-subtitle">Recursive Growth Patterns</div>
                 <div class="article-content">Mandelbulb Development</div>
             </div>
-            
-            <!-- Template 5: CRYSTAL (CONTEXT) -->
             <div id="template-crystal" data-geometry="crystal">
                 <div class="card-title">CONTEXT</div>
                 <div class="card-subtitle">Ordered Complexity</div>
                 <div class="article-content">Settings & Configuration</div>
             </div>
-            
-            <!-- Template 6: KLEIN (BOUNDARY TRANSCENDENCE) -->
             <div id="template-klein" data-geometry="klein">
                 <div class="card-title">KLEIN</div>
                 <div class="card-subtitle">Non-Orientable Topology</div>
                 <div class="article-content">Boundary Transcendence</div>
             </div>
-            
-            <!-- Template 7: TORUS (FLOW) -->
             <div id="template-torus" data-geometry="torus">
                 <div class="card-title">TORUS</div>
                 <div class="card-subtitle">Flow & Circulation</div>
                 <div class="article-content">Continuous Creation</div>
             </div>
-            
         </div>
+        -->
         
             </div> <!-- Close scroll-wrapper -->
         </div> <!-- Close dynamic-face -->
@@ -2368,7 +2330,8 @@
                 this.layoutNames = ['HOME', 'TECH', 'MEDIA', 'INNOVATION', 'RESEARCH'];
                 this.layoutClasses = ['layout-home', 'layout-tech', 'layout-media', 'layout-innovation', 'layout-research'];
                 
-                // State-specific blog content
+                // State-specific blog content - Now superseded by presets/site-content.json
+                /*
                 this.stateContent = [
                     { // HOME - Traditional Blog
                         header: { title: 'VIB3CODE', subtitle: 'Emergent Interface Architecture' },
@@ -2441,6 +2404,7 @@
                         }
                     }
                 ];
+                */
                 
                 this.initialize();
             }
@@ -2498,10 +2462,10 @@
                 });
                 
                 this.setupInteractions();
-                this.setupStateControls();
+                this.setupStateControls(); // This is already commented out internally
                 // this.setupScrolling(); // Commented out to disable old scroll logic
                 this.startRenderLoop();
-                this.updateContent();
+                // this.updateContent(); // Superseded by DualNavigationSystem dynamic rendering
                 
                 console.log(`✅ Morphing Blog System ready - ${this.visualizers.length} visualizers with dynamic content`);
             }
@@ -3039,75 +3003,19 @@
             //     this.triggerStateTransition(stateIndex);
             // }
             
-            /* // updateContent and related methods are superseded by DualNavigationSystem.updateDynamicFaceContent
+            /*
+            // updateContent and related methods are superseded by DualNavigationSystem.updateDynamicFaceContent
+            // and the new JSON-driven content system.
             updateContent() {
-                const content = this.stateContent[this.currentState];
-                
-                // Update header
-                document.getElementById('blog-title').textContent = content.header.title;
-                document.getElementById('header-subtitle').textContent = content.header.subtitle;
-                
-                // Update featured article
-                document.getElementById('card-title-2').textContent = content.featured.title;
-                document.getElementById('card-subtitle-2').textContent = content.featured.subtitle;
-                document.getElementById('article-content-2').innerHTML = this.formatContent(content.featured.content);
-                
-                // Update sidebar
-                document.getElementById('card-title-4').textContent = content.sidebar.title;
-                document.getElementById('card-subtitle-4').textContent = content.sidebar.subtitle;
-                document.getElementById('article-content-4').innerHTML = this.formatContent(content.sidebar.content);
-                
-                // State-specific content updates
-                this.updateStateSpecificContent();
+                // ... old code ...
             }
-            
             updateStateSpecificContent() {
-                const content = this.stateContent[this.currentState];
-                
-                // Update article meta with appropriate tag
-                const metaElements = document.querySelectorAll('.article-meta .tag');
-                metaElements.forEach(tag => {
-                    tag.textContent = content.featured.tag;
-                });
-                
-                // Update secondary cards based on state
-                switch(this.currentState) {
-                    case 0: // HOME
-                        document.getElementById('card-title-3').textContent = 'Geometric Lexicon';
-                        document.getElementById('card-title-5').textContent = 'Latest';
-                        document.getElementById('card-title-6').textContent = 'System Status';
-                        break;
-                    case 1: // TECH
-                        document.getElementById('card-title-3').textContent = 'Code Examples';
-                        document.getElementById('card-title-5').textContent = 'API Methods';
-                        document.getElementById('card-title-6').textContent = 'Reference';
-                        break;
-                    case 2: // MEDIA
-                        document.getElementById('card-title-3').textContent = 'Visual Gallery';
-                        document.getElementById('card-title-5').textContent = 'Media Stream';
-                        document.getElementById('card-title-6').textContent = 'Creative Tools';
-                        break;
-                    case 3: // INNOVATION
-                        document.getElementById('card-title-3').textContent = 'Growth Patterns';
-                        break;
-                    case 4: // RESEARCH
-                        document.getElementById('card-title-3').textContent = 'Abstract';
-                        document.getElementById('card-title-5').textContent = 'Methods';
-                        document.getElementById('card-title-6').textContent = 'Conclusions';
-                        break;
-                }
+                // ... old code ...
             }
-            
             formatContent(content) {
-                return content
-                    .replace(/\n\n/g, '</p><p>')
-                    .replace(/\n/g, '<br>')
-                    .replace(/→/g, '<span class="link-button">→')
-                    .replace(/(\d+\.)/g, '</span><br><span class="link-button">$1')
-                    .replace(/```javascript\n([\s\S]*?)\n```/g, '<div class="code-block">$1</div>')
-                    .replace(/\[(\d+)\]/g, '<span class="link-button">[$1]</span>');
+                // ... old code ...
             }
-            */ // End of updateContent, updateStateSpecificContent, formatContent
+            */
             
             startRenderLoop() {
                 const render = () => {
@@ -3234,10 +3142,11 @@
                 this.dynamicFace.setAttribute('data-geometry', geometryName);
                 this.dynamicFace.setAttribute('data-face', faceIndex.toString());
                 
-                const template = document.getElementById(`template-${geometryName}`);
-                if (template) {
-                    this.updateCardContent(template);
-                }
+                // const template = document.getElementById(`template-${geometryName}`);
+                // if (template) {
+                //     this.updateCardContent(template); // OLD WAY - relies on MorphingBlogSystem
+                // }
+                this._renderDynamicContentForSection(geometryName); // NEW WAY
                 
                 const blogContainer = this.dynamicFace.querySelector('.blog-container'); // More specific selector
                 if (blogContainer) {
@@ -3251,8 +3160,186 @@
                 // For now, keeping direct call to ensure visualizers update
                 // this.triggerVIB34DGeometryChange(geometryName, faceIndex); // Commented out: Bridge will handle this.
             }
+
+            _getElementTagForBlockType(blockType) {
+                switch (blockType) {
+                    case 'heading': return `h${blockData.level || 2}`; // Default to h2 if no level
+                    case 'paragraph': return 'p';
+                    case 'image': return 'img';
+                    case 'video': return 'video';
+                    case 'codeblock': return 'pre'; // Will wrap a <code> element
+                    case 'metadata': return 'div'; // Or 'ul' for list of tags
+                    default: return 'div';
+                }
+            }
+
+            _applyStylesFromPreset(element, stylesObject) {
+                if (!element || !stylesObject) return;
+                for (const prop in stylesObject) {
+                    element.style[prop] = stylesObject[prop];
+                }
+            }
+
+            _renderDynamicContentForSection(geometryName) {
+                if (!this.homeMaster || !this.homeMaster.siteContentData || !this.homeMaster.editorConfig?.contentPresentation) {
+                    console.warn("DualNavigationSystem: HomeMaster missing siteContentData or contentPresentation config. Cannot render dynamic content.");
+                    // Fallback to old method or clear content if necessary
+                    // For now, let's try to call the old updateCardContent if morphingBlogSystem exists
+                    if (window.morphingBlogSystem && typeof window.morphingBlogSystem.updateCardContent === 'function') {
+                        const template = document.getElementById(`template-${geometryName}`);
+                        if (template) {
+                            console.warn("DualNavigationSystem: Falling back to legacy content update for template:", geometryName);
+                            window.morphingBlogSystem.updateCardContent(template); // This uses MorphingBlogSystem's stateContent
+                        }
+                    }
+                    return;
+                }
+
+                let targetSectionKey = null;
+                // Find sectionKey (e.g., "HOME") from geometryName (e.g., "hypercube")
+                for (const [key, modifier] of Object.entries(this.homeMaster.sectionModifiers)) {
+                    if (modifier.geometryThemeName === geometryName) {
+                        targetSectionKey = modifier.name; // This is the string key like "HOME"
+                        break;
+                    }
+                }
+
+                if (!targetSectionKey) {
+                    console.warn(`DualNavigationSystem: No sectionKey found for geometryName: ${geometryName}`);
+                    return;
+                }
+
+                const sectionData = this.homeMaster.siteContentData.sections?.find(s => s.sectionKey === targetSectionKey);
+                if (!sectionData || !sectionData.cards) {
+                    console.warn(`DualNavigationSystem: No content found for sectionKey: ${targetSectionKey} in site-content.json`);
+                    // Clear content of all cards in this face perhaps?
+                    document.querySelectorAll(`#dynamic-face .blog-card .card-content`).forEach(cc => cc.innerHTML = '');
+                    return;
+                }
+
+                const presentationConfig = this.homeMaster.editorConfig.contentPresentation;
+                const defaultBlockStyles = presentationConfig.defaultBlockStyles || {};
+
+                // Clear all existing cards' dynamic content first for this face to handle cases where JSON has fewer cards
+                document.querySelectorAll(`#dynamic-face .blog-card`).forEach(cardDiv => {
+                    const কন্টেইনার = cardDiv.querySelector('.card-content');
+                    if (কন্টেইনার) কন্টেইনার.innerHTML = ''; // Clear previous dynamic blocks
+                });
+
+
+                sectionData.cards.forEach(cardData => {
+                    const cardElement = document.getElementById(cardData.cardId);
+                    if (!cardElement) {
+                        console.warn(`DualNavigationSystem: Card element with ID ${cardData.cardId} not found in DOM.`);
+                        return;
+                    }
+                    const contentContainer = cardElement.querySelector('.card-content');
+                    if (!contentContainer) {
+                        console.warn(`DualNavigationSystem: .card-content container not found in card ${cardData.cardId}.`);
+                        return;
+                    }
+                    contentContainer.innerHTML = ''; // Clear previous content for this specific card
+
+                    const cardLayoutKey = `${sectionData.sectionKey}_${cardData.layoutRole || cardData.cardId}`;
+                    const cardLayoutPreset = presentationConfig.cardLayouts?.[cardLayoutKey];
+
+                    cardData.contentBlocks.forEach(blockData => {
+                        let elementTag = 'div'; // Default
+                        if (blockData.type === 'heading') {
+                            elementTag = `h${blockData.level || 2}`;
+                        } else if (blockData.type === 'paragraph') {
+                            elementTag = 'p';
+                        } else if (blockData.type === 'image') {
+                            elementTag = 'img';
+                        } else if (blockData.type === 'video') {
+                            elementTag = 'video';
+                        } else if (blockData.type === 'codeblock') {
+                            elementTag = 'pre';
+                        } else if (blockData.type === 'metadata') {
+                            elementTag = 'div'; // Could be a UL/LI structure too
+                        }
+
+                        const element = document.createElement(elementTag);
+                        element.id = blockData.blockId; // Essential for animation/styling targeting
+                        element.classList.add('dynamic-content-block'); // Common class for all dynamic blocks
+
+                        // Populate content
+                        if (blockData.type === 'heading' || blockData.type === 'paragraph') {
+                            element.textContent = blockData.text || '';
+                        } else if (blockData.type === 'image') {
+                            element.src = blockData.src || '';
+                            element.alt = blockData.alt || '';
+                            if (blockData.caption) {
+                                const figure = document.createElement('figure');
+                                const figcaption = document.createElement('figcaption');
+                                figcaption.textContent = blockData.caption;
+                                figure.appendChild(element);
+                                figure.appendChild(figcaption);
+                                contentContainer.appendChild(figure);
+                            } else {
+                                contentContainer.appendChild(element);
+                            }
+                        } else if (blockData.type === 'video') {
+                            element.src = blockData.src || '';
+                            element.poster = blockData.poster || '';
+                            if (blockData.controls) element.controls = true;
+                            contentContainer.appendChild(element);
+                        } else if (blockData.type === 'codeblock') {
+                            const codeEl = document.createElement('code');
+                            if (blockData.language) codeEl.classList.add(`language-${blockData.language}`);
+                            codeEl.textContent = blockData.code || '';
+                            element.appendChild(codeEl); // pre > code
+                            contentContainer.appendChild(element);
+                        } else if (blockData.type === 'metadata') {
+                            element.classList.add('metadata-block'); // For specific styling
+                            let metaHTML = '';
+                            if (blockData.tags && blockData.tags.length) {
+                                metaHTML += `<span class="tags">Tags: ${blockData.tags.join(', ')}</span>`;
+                            }
+                            if (blockData.date) {
+                                metaHTML += `<span class="date">Date: ${blockData.date}</span>`;
+                            }
+                            element.innerHTML = metaHTML;
+                            contentContainer.appendChild(element);
+                        } else {
+                             contentContainer.appendChild(element); // Default append for other types
+                        }
+
+                        // Apply default styles for block type
+                        if (defaultBlockStyles[blockData.type]) {
+                            this._applyStylesFromPreset(element, defaultBlockStyles[blockData.type]);
+                        }
+
+                        // Apply layout-specific styles
+                        let appearanceAnimName = null;
+                        if (cardLayoutPreset && cardLayoutPreset.blockStyles) {
+                            const styleRule = cardLayoutPreset.blockStyles.find(
+                                r => r.targetBlockId === blockData.blockId || r.targetBlockType === blockData.type
+                            );
+                            if (styleRule) {
+                                if (styleRule.styles) this._applyStylesFromPreset(element, styleRule.styles);
+                                appearanceAnimName = styleRule.appearanceAnimation; // Get animation name
+                            }
+                        }
+
+                        // Trigger appearance animation if defined
+                        if (appearanceAnimName && this.homeMaster.triggerContentBlockAnimation) {
+                            // Temporarily set opacity to 0 before animation starts if it's a fade-in type
+                            const animDef = presentationConfig.contentBlockAnimations?.[appearanceAnimName];
+                            if (animDef && ( (animDef.type === 'opacity' && animDef.from === 0) || (animDef.type==='sequence' && animDef.steps?.find(s=>s.property==='opacity' && s.from ===0))  ) ) {
+                                element.style.opacity = '0';
+                            }
+                             this.homeMaster.triggerContentBlockAnimation(cardData.cardId, blockData.blockId, appearanceAnimName, 'appearance');
+                        } else {
+                            // If no animation, ensure it's visible (in case default was opacity 0)
+                             if (element.style.opacity === '0') element.style.opacity = '1';
+                        }
+                    });
+                });
+            }
             
-            updateCardContent(template) {
+            updateCardContent(template) { // THIS IS THE OLD METHOD, CALLED BY THE HTML TEMPLATE LOGIC.
+                                          // IT WILL BE REPLACED BY _renderDynamicContentForSection
                 const cards = this.dynamicFace.querySelectorAll('.blog-card .card-content');
                 cards.forEach((cardContent, index) => {
                     const templateTitle = template.querySelector('.card-title')?.textContent;
