@@ -2561,9 +2561,10 @@
                 }, 50);
                 
                 // 4D CUBE NAVIGATION DRAG SYSTEM
-                this.setupCubeNavigation();
+                // this.setupCubeNavigation(); // Now handled by DualNavigationSystem
             }
             
+            /* // Entire setupCubeNavigation and its helpers are superseded by DualNavigationSystem
             setupCubeNavigation() {
                 console.log('🔳 Setting up 4D Cube Navigation System...');
                 
@@ -2800,16 +2801,16 @@
                 document.documentElement.style.setProperty('--micro-chaos', hoveredIndex >= 0 ? '0.5' : '0.0');
             }
             
-            setupStateControls() {
-                document.querySelectorAll('.state-dot').forEach((dot, index) => {
-                    dot.addEventListener('click', () => {
-                        this.snapToState(index);
+            // setupStateControls() { // Superseded by DualNavigationSystem and HomeMaster
+            //     document.querySelectorAll('.state-dot').forEach((dot, index) => {
+            //         dot.addEventListener('click', () => {
+            //             this.snapToState(index);
                         
-                        document.querySelectorAll('.state-dot').forEach(d => d.classList.remove('active'));
-                        dot.classList.add('active');
-                    });
-                });
-            }
+            //             document.querySelectorAll('.state-dot').forEach(d => d.classList.remove('active'));
+            //             dot.classList.add('active');
+            //         });
+            //     });
+            // }
             
             setupScrolling() {
                 /*  Entire method commented out to disable old scroll logic.
@@ -2915,6 +2916,7 @@
             }
             */ // End of commented out setupScrolling method
             
+            /* // triggerStateTransition is largely superseded by DualNavigationSystem -> HomeMaster -> Bridge
             triggerStateTransition(newState) {
                 if (newState === this.currentState || this.isTransitioning) return;
                 
@@ -2973,7 +2975,9 @@
                     }, 1400);
                 });
             }
+            */ // End of triggerStateTransition
             
+            /* // triggerPortalTransition is superseded by HomeMaster state + Bridge sync
             triggerPortalTransition(callback) {
                 // Portal position (center of screen)
                 document.documentElement.style.setProperty('--portal-x', '50%');
@@ -3018,8 +3022,9 @@
                     document.documentElement.style.setProperty('--transition-phase', '0');
                 }, 1200);
             }
+            */ // End of triggerPortalTransition
             
-            getVisibleCardCount(state) {
+            getVisibleCardCount(state) { // This might still be used if the state indicator UI is kept for dev/debug
                 switch(state) {
                     case 0: return 6; // HOME
                     case 1: return 5; // TECH
@@ -3030,10 +3035,11 @@
                 }
             }
             
-            snapToState(stateIndex) {
-                this.triggerStateTransition(stateIndex);
-            }
+            // snapToState(stateIndex) { // Superseded
+            //     this.triggerStateTransition(stateIndex);
+            // }
             
+            /* // updateContent and related methods are superseded by DualNavigationSystem.updateDynamicFaceContent
             updateContent() {
                 const content = this.stateContent[this.currentState];
                 
@@ -3101,6 +3107,7 @@
                     .replace(/```javascript\n([\s\S]*?)\n```/g, '<div class="code-block">$1</div>')
                     .replace(/\[(\d+)\]/g, '<span class="link-button">[$1]</span>');
             }
+            */ // End of updateContent, updateStateSpecificContent, formatContent
             
             startRenderLoop() {
                 const render = () => {
