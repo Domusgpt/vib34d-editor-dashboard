@@ -350,6 +350,56 @@
               "animation": { "type": "fadeInUp", "duration": 300, "delay": 600 }
             }
           ]
+        },
+        "contentExpansion": {
+          "enabled": true,
+          "animation": {
+            "duration": 0.4,
+            "easing": "easeInOutQuad"
+          },
+          "cardElements": {
+            ".card-visualizer": {
+              "targetState": { "opacity": 0, "height": "0%" },
+              "comment": "Hide the card's internal visualizer to give max space to content."
+            },
+            ".card-title": {
+              "targetState": { "fontSize": "1.5rem", "marginBottom": "5px" },
+              "comment": "Slightly shrink the main title."
+            },
+            ".card-subtitle": {
+                "targetState": { "opacity": 0, "height": "0px", "marginBottom": "0px", "overflow": "hidden"},
+                "comment": "Hide the subtitle."
+            },
+            ".card-content": {
+              "targetState": {
+                "paddingTop": "15px",
+                "paddingBottom": "15px",
+                "height": "calc(100% - 30px)"
+              },
+              "makeScrollable": true,
+              "comment": "Expand the content area and ensure it's scrollable."
+            },
+            ".article-meta": {
+                "targetState": { "opacity": 0, "height": "0px", "paddingTop": "0px", "marginTop": "0px", "borderTop": "none", "overflow": "hidden" },
+                "comment": "Hide the article meta/footer."
+            }
+          },
+          "backButton": {
+            "enabled": true,
+            "id": "focusBtnCollapseDetails",
+            "text": "↑ Summary",
+            "iconClass": null,
+            "action": "collapseCardContent",
+            "stylePreset": "focusModeFloatingButton",
+            "containerStyles": {
+              "position": "absolute",
+              "top": "10px",
+              "left": "10px",
+              "opacity": 0,
+              "zIndex": "1002"
+            },
+            "animation": { "type": "fadeIn", "duration": 0.3, "delay": 0.3 }
+          }
         }
       },
       "globalMouseEffects": {

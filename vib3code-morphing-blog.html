@@ -410,6 +410,7 @@
             z-index: 1;
             opacity: var(--visualizer-opacity, 0.6);
             transition: opacity 0.8s ease;
+            will-change: opacity, height; /* For content expansion */
         }
         
         /* Smart opacity states */
@@ -447,7 +448,7 @@
             /* overflow-y: auto; */ /* Changed for transform-based scrolling */
             overflow: hidden; /* Crucial for transform-based scrolling */
             transition: all 0.3s ease; /* Existing transition, may need review with transform scrolling */
-            will-change: transform; /* Performance hint for scrolling */
+            will-change: transform, padding, height; /* Performance hint for scrolling & content expansion */
         }
         
         .card-content::before {
@@ -656,6 +657,7 @@
             letter-spacing: 1px;
             text-transform: uppercase;
             line-height: 1.1;
+            will-change: font-size, margin-bottom; /* For content expansion */
         }
         
         .card-subtitle {
@@ -665,6 +667,7 @@
             text-shadow: 0 0 8px #00ffff;
             letter-spacing: 0.5px;
             font-weight: 700;
+            will-change: opacity, height, margin-bottom; /* For content expansion */
         }
         
         .card-description {
@@ -701,6 +704,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            will-change: opacity, height, padding-top, margin-top, border-top; /* For content expansion */
         }
         
         .tag {

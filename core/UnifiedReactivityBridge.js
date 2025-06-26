@@ -1084,6 +1084,42 @@ class UnifiedReactivityBridge {
             }
             // --- END GLOBAL MOUSE EFFECTS SYNCHRONIZATION ---
 
+            // --- CARD CONTENT EXPANSION SYNCHRONIZATION ---
+            if (ms.expandedCardContent && ms.cardInternalAnimations[ms.expandedCardContent]) {
+                const focusedCardElement = document.getElementById(ms.expandedCardContent);
+                if (focusedCardElement) {
+                    const internalAnims = ms.cardInternalAnimations[ms.expandedCardContent];
+                    const contentExpansionPreset = this.homeMaster.editorConfig?.interactionPresets?.cardFocusMode?.contentExpansion;
+
+                    for (const selector in internalAnims) {
+                        const elementToStyle = focusedCardElement.querySelector(selector);
+                        if (elementToStyle) {
+                            const animStatesForElement = internalAnims[selector];
+                            for (const prop in animStatesForElement) {
+                                const propAnim = animStatesForElement[prop];
+                                if (propAnim && propAnim.hasOwnProperty('current')) {
+                                    elementToStyle.style[prop] = propAnim.current;
+                                }
+                            }
+                            // Handle makeScrollable for .card-content
+                            if (selector === '.card-content' && contentExpansionPreset?.cardElements?.[selector]?.makeScrollable) {
+                                elementToStyle.style.overflowY = 'auto';
+                            }
+                        }
+                    }
+                }
+            } else if (!ms.expandedCardContent && ms.focusedCardId) {
+                // Content is collapsed, ensure internal elements revert (if not handled by animation targets already)
+                // This primarily ensures 'overflowY' is reset if it was set.
+                const focusedCardElement = document.getElementById(ms.focusedCardId);
+                if (focusedCardElement) {
+                    const cardContentEl = focusedCardElement.querySelector('.card-content');
+                    if (cardContentEl && cardContentEl.style.overflowY === 'auto') {
+                        cardContentEl.style.overflowY = 'hidden'; // Or original value
+                    }
+                }
+            }
+            // --- END CARD CONTENT EXPANSION SYNCHRONIZATION ---
 
             requestAnimationFrame(update);
         };

@@ -89,6 +89,11 @@ class VIB3HomeMaster {
             globalMouseEffectsState: {}, // Stores current animated values for global effects
                                          // e.g., { effectId: { paramName: { current, target, baseValue, smoothingFactor }, ... } }
             globalMouseIdleTimeout: 2000, // ms before global mouse effects start reverting
+
+            // Card Content Expansion State (within Focus Mode)
+            expandedCardContent: null, // Stores the cardId if its content is expanded, else null
+            cardInternalAnimations: {},  // Stores animation states for elements within the focused card
+                                         // Structure: { cardId: { selector: { currentOpacity, targetOpacity, etc... } } }
         };
         
         // Section Modifiers - Relational mathematical relationships (configurable)
@@ -662,6 +667,34 @@ class VIB3HomeMaster {
                 }
 
                 const now = currentTime; // Consistent time for this frame's updates
+
+                // Process Card Internal Animations (for content expansion)
+                if (this.masterState.expandedCardContent && this.masterState.cardInternalAnimations[this.masterState.expandedCardContent]) {
+                    const cardAnims = this.masterState.cardInternalAnimations[this.masterState.expandedCardContent];
+                    for (const selector in cardAnims) {
+                        const elementAnimState = cardAnims[selector];
+                        for (const prop in elementAnimState) {
+                            const anim = elementAnimState[prop];
+                            if (anim && anim.startTime > 0) {
+                                const elapsed = now - anim.startTime;
+                                const progress = Math.min(elapsed / anim.duration, 1.0);
+                                const easedProgress = this._applyEasing(progress, anim.easing);
+
+                                if (typeof anim.target === 'number' && typeof anim.fromValue === 'number') {
+                                    anim.current = anim.fromValue + (anim.target - anim.fromValue) * easedProgress;
+                                } else { // For string values (like height: "0%", overflow: "hidden")
+                                    anim.current = progress < 0.5 ? anim.fromValue : anim.target;
+                                    if (progress >= 1.0) anim.current = anim.target;
+                                }
+
+                                if (progress >= 1.0) {
+                                    anim.current = anim.target;
+                                    anim.startTime = 0; // Mark as complete
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Process Global Mouse Effects animations
                 const globalMouseConfig = this.editorConfig?.interactionPresets?.globalMouseEffects;
@@ -1682,12 +1715,19 @@ class VIB3HomeMaster {
 
     _exitCardFocusMode(immediate = false) {
         if (!this.masterState.focusedCardId) return;
-        console.log(`🚪 Exiting Card Focus Mode for: ${this.masterState.focusedCardId}`);
+        const cardIdToExit = this.masterState.focusedCardId; // Store before clearing potentially
+
+        console.log(`🚪 Exiting Card Focus Mode for: ${cardIdToExit}`);
 
         const focusPreset = this.editorConfig?.interactionPresets?.cardFocusMode;
         if (!focusPreset) return;
 
-        const cardIdToExit = this.masterState.focusedCardId;
+        // If content was expanded, collapse it first or simultaneously
+        if (this.masterState.expandedCardContent === cardIdToExit) {
+            this._animateCardInternalElements(cardIdToExit, 'collapse');
+            this._animateFocusModeButton(cardIdToExit, 'focusBtnCollapseDetails', 'hide', immediate); // Pass immediate flag
+            this.masterState.expandedCardContent = null;
+        }
 
         this._hideEmergingButtons(cardIdToExit, immediate);
 
@@ -1870,9 +1910,25 @@ class VIB3HomeMaster {
             case 'triggerCloseCardFocusMode': // Matches preset action
                 this._exitCardFocusMode();
                 break;
-            case 'expandCardContent':
             case 'navigateToProjectUrl':
-                console.log(`Action '${action}' for card '${cardId}' triggered by button '${buttonId}'. Implementation pending.`);
+                console.log(`Action '${action}' for card '${cardId}' triggered by button '${buttonId}'. NavigateToProjectUrl implementation pending.`);
+                break;
+            case 'expandCardContent':
+                if (this.masterState.focusedCardId && this.masterState.focusedCardId === cardId) {
+                    this.masterState.expandedCardContent = cardId;
+                    this._animateCardInternalElements(cardId, 'expand');
+                    // Assuming 'focusBtnCollapseDetails' is the ID of the back/collapse button from preset
+                    this._animateFocusModeButton(this.masterState.focusedCardId, 'focusBtnCollapseDetails', 'show');
+                } else {
+                    console.warn("expandCardContent called but no card is focused or cardId mismatch.");
+                }
+                break;
+            case 'collapseCardContent':
+                if (this.masterState.expandedCardContent && this.masterState.expandedCardContent === cardId) {
+                    this._animateCardInternalElements(cardId, 'collapse');
+                    this._animateFocusModeButton(cardId, 'focusBtnCollapseDetails', 'hide');
+                    this.masterState.expandedCardContent = null;
+                }
                 break;
             default:
                 console.warn("Unknown focus mode button action:", action);
@@ -1999,6 +2055,155 @@ class VIB3HomeMaster {
         }
     }
     // --- End Global Mouse Effects Logic ---
+
+    // --- Card Content Expansion Specific Logic ---
+    _animateCardInternalElements(cardId, direction) { // direction is 'expand' or 'collapse'
+        const focusPreset = this.editorConfig?.interactionPresets?.cardFocusMode;
+        const contentExpansionPreset = focusPreset?.contentExpansion;
+
+        if (!contentExpansionPreset?.enabled || !cardId) {
+            console.warn("Content expansion preset not enabled or cardId missing for _animateCardInternalElements.");
+            return;
+        }
+
+        if (!this.masterState.cardInternalAnimations[cardId]) {
+            this.masterState.cardInternalAnimations[cardId] = {};
+        }
+        const cardAnims = this.masterState.cardInternalAnimations[cardId];
+        const animConfig = contentExpansionPreset.animation;
+
+        for (const selector in contentExpansionPreset.cardElements) {
+            const elementPreset = contentExpansionPreset.cardElements[selector];
+            if (!cardAnims[selector]) cardAnims[selector] = {};
+
+            const currentElementAnimState = cardAnims[selector];
+
+            for (const prop in elementPreset.targetState) {
+                // Ensure current value is initialized before trying to access it
+                if (!currentElementAnimState[prop]) {
+                    currentElementAnimState[prop] = {
+                        current: this._getDefaultInternalElementStyleValue(selector, prop, direction === 'expand' ? 'summary' : 'expanded', cardId),
+                        target: 0,
+                        fromValue: 0
+                    };
+                }
+
+                const baseValue = this._getDefaultInternalElementStyleValue(selector, prop, 'summary', cardId);
+                const expandedValue = elementPreset.targetState[prop];
+
+                currentElementAnimState[prop].fromValue = currentElementAnimState[prop].current;
+                currentElementAnimState[prop].target = (direction === 'expand') ? expandedValue : baseValue;
+                currentElementAnimState[prop].startTime = performance.now();
+                currentElementAnimState[prop].duration = animConfig.duration;
+                currentElementAnimState[prop].easing = animConfig.easing;
+                // console.log(`Internal anim for ${cardId} ${selector}.${prop}: from ${currentElementAnimState[prop].fromValue} to ${currentElementAnimState[prop].target}`);
+            }
+        }
+    }
+
+    _getDefaultInternalElementStyleValue(selector, property, mode = 'summary', cardId = null) {
+        // Try to get a more dynamic 'current' value if collapsing, otherwise use structural defaults.
+        // This is still a simplification. The Bridge would have the actual current DOM values.
+        if (mode === 'expanded' && cardId && this.masterState.cardInternalAnimations[cardId]?.[selector]?.[property]) {
+             // If collapsing (current mode is 'expanded'), the 'fromValue' is the current animated value.
+            return this.masterState.cardInternalAnimations[cardId][selector][property].current;
+        }
+
+        // Fallback to structural defaults for 'summary' mode or if current not available.
+        // These should ideally match the initial CSS of these elements within a card.
+        // Example:
+        if (selector === '.card-visualizer') {
+            if (property === 'opacity') return 1.0;
+            if (property === 'height') return '40%'; // As an example, might be different based on card layout
+        }
+        if (selector === '.card-title') {
+            if (property === 'fontSize') return '2rem';
+            if (property === 'marginBottom') return '12px';
+        }
+        if (selector === '.card-subtitle') {
+            if (property === 'opacity') return 1.0;
+            if (property === 'height') return 'auto';
+            if (property === 'marginBottom') return '15px';
+        }
+        if (selector === '.card-content') { // The main scrollable area
+            if (property === 'paddingTop') return '25px';
+            if (property === 'paddingBottom') return '25px';
+            if (property === 'height') return 'auto'; // Default height before expansion
+        }
+        if (selector === '.article-meta') {
+            if (property === 'opacity') return 1.0;
+            if (property === 'height') return 'auto';
+            if (property === 'paddingTop') return '15px';
+            if (property === 'marginTop') return 'auto';
+            if (property === 'borderTop') return '1px solid rgba(0, 255, 255, 0.3)';
+        }
+        if (property === 'overflow') return 'hidden'; // Default for elements we might make 'auto'
+
+        // Generic fallback for numeric vs string
+        const numericDefaults = { opacity: 1.0, scale: 1.0, zIndex: 1, fontSize: 16, marginBottom: 0, paddingTop: 0, paddingBottom: 0 };
+        if (numericDefaults.hasOwnProperty(property)) return numericDefaults[property];
+
+        const stringDefaults = { height: 'auto', borderTop: 'none' };
+        if (stringDefaults.hasOwnProperty(property)) return stringDefaults[property];
+
+        return 0; // Last resort fallback
+    }
+
+    _animateFocusModeButton(cardId, buttonId, direction = 'show', immediate = false) {
+        const focusPreset = this.editorConfig?.interactionPresets?.cardFocusMode;
+        let buttonPresetDef = null;
+
+        // Check primary emerging buttons
+        if (focusPreset?.emergingButtons?.buttons) {
+            buttonPresetDef = focusPreset.emergingButtons.buttons.find(b => b.id === buttonId);
+        }
+        // Check content expansion back button
+        if (!buttonPresetDef && focusPreset?.contentExpansion?.backButton?.id === buttonId) {
+            buttonPresetDef = focusPreset.contentExpansion.backButton;
+        }
+
+        if (!buttonPresetDef) {
+            console.warn(`_animateFocusModeButton: Button preset for ID '${buttonId}' not found.`);
+            return;
+        }
+
+        if (!this.masterState.emergingButtonsStates[buttonId]) {
+            this.masterState.emergingButtonsStates[buttonId] = {
+                cardId: cardId,
+                preset: buttonPresetDef,
+                isVisible: false,
+                animation: {}
+            };
+        }
+
+        const btnAnimState = this.masterState.emergingButtonsStates[buttonId];
+        btnAnimState.cardId = cardId; // Ensure cardId is correct
+        btnAnimState.preset = buttonPresetDef; // Ensure preset is up-to-date
+
+        if (!btnAnimState.animation.opacity) {
+            btnAnimState.animation.opacity = { current: (direction === 'show' ? 0:1) , fromValue: (direction === 'show' ? 0:1), target: 0, startTime: 0, duration: 300, easing: 'easeOutQuad' };
+        }
+        const opAnim = btnAnimState.animation.opacity;
+
+        opAnim.fromValue = opAnim.current;
+        opAnim.target = (direction === 'show') ? 1 : 0;
+        opAnim.duration = immediate ? 0 : (buttonPresetDef.animation?.duration || 300);
+        opAnim.easing = buttonPresetDef.animation?.easingFunction || 'easeOutQuad';
+        opAnim.startTime = performance.now() + (direction === 'show' && !immediate ? (buttonPresetDef.animation?.delay || 0) : 0);
+
+        if (immediate) {
+            opAnim.current = opAnim.target;
+            opAnim.startTime = 0;
+        }
+
+        if (direction === 'show' && opAnim.target > 0) { // Only set visible if actually showing
+            btnAnimState.isVisible = true;
+        } else if (direction === 'hide' && opAnim.target === 0 && immediate) {
+             btnAnimState.isVisible = false;
+        }
+        // For non-immediate hide, isVisible will be set by animation loop when opacity is near 0
+    }
+     // --- End Card Content Expansion Specific Logic ---
 }
 
 export default VIB3HomeMaster;
