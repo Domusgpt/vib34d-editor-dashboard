@@ -568,5 +568,146 @@
         }
       }
     }
+  },
+  "contentPresentation": {
+    "comment": "Defines default styles, layout-specific styles, and animations for dynamically rendered content blocks.",
+    "defaultBlockStyles": {
+      "heading": {
+        "fontFamily": "Orbitron, sans-serif",
+        "color": "var(--text-color-headings, #E0E0FF)",
+        "marginBottom": "0.5em"
+      },
+      "paragraph": {
+        "fontFamily": "'JetBrains Mono', monospace",
+        "lineHeight": 1.6,
+        "color": "var(--text-color-body, #C0C0DD)",
+        "marginBottom": "1em"
+      },
+      "image": {
+        "maxWidth": "100%",
+        "borderRadius": "8px",
+        "boxShadow": "0 4px 12px rgba(0,0,0,0.5)",
+        "border": "1px solid rgba(255,255,255,0.1)",
+        "display": "block",
+        "marginTop": "0.5em",
+        "marginBottom": "0.5em"
+      },
+      "video": {
+        "maxWidth": "100%",
+        "borderRadius": "8px",
+        "display": "block",
+        "marginTop": "0.5em",
+        "marginBottom": "0.5em"
+      },
+      "codeblock": {
+        "backgroundColor": "rgba(0,0,0,0.3)",
+        "border": "1px solid rgba(0, 255, 255, 0.2)",
+        "borderRadius": "4px",
+        "padding": "1em",
+        "fontFamily": "'JetBrains Mono', monospace",
+        "fontSize": "0.85em",
+        "overflowX": "auto",
+        "color": "#9EFFA0"
+      },
+      "metadata": {
+        "fontSize": "0.8em",
+        "color": "var(--accent-color-medium, #00AACC)",
+        "marginTop": "1em",
+        "borderTop": "1px dashed rgba(255,255,255,0.2)",
+        "paddingTop": "0.5em"
+      }
+    },
+    "cardLayouts": {
+      "HOME_featuredArticle": {
+        "comment": "Styling for the featured article card (blog-card-2) in the HOME section.",
+        "blockStyles": [
+          {
+            "targetBlockId": "article2Title",
+            "styles": { "fontSize": "2.2rem", "color": "#FFFFFF", "textShadow": "0 0 8px #FF00FF" },
+            "appearanceAnimation": "titleSlideInFromTop",
+            "disappearanceAnimation": "textFadeOut"
+          },
+          {
+            "targetBlockId": "article2Subtitle",
+            "styles": { "fontSize": "1.1rem", "color": "#00FFFF" },
+            "appearanceAnimation": "textFadeInDelayed",
+            "disappearanceAnimation": "textFadeOut"
+          },
+          {
+            "targetBlockType": "paragraph",
+            "styles": { "fontSize": "0.95rem" },
+            "appearanceAnimation": "textFadeIn",
+            "disappearanceAnimation": "textFadeOut"
+          },
+          {
+            "targetBlockId": "article2Img1",
+            "styles": { "marginTop": "1em", "marginBottom": "1em" },
+            "appearanceAnimation": "imageScaleIn",
+            "disappearanceAnimation": "imageFadeOut"
+          },
+          {
+            "targetBlockId": "article2Meta",
+            "styles": { "textAlign": "right" },
+            "appearanceAnimation": "textFadeInDelayed",
+            "disappearanceAnimation": "textFadeOut"
+          }
+        ]
+      },
+      "HOME_header": {
+        "comment": "Styling for the header card (blog-card-1) in the HOME section.",
+        "blockStyles": [
+           {
+            "targetBlockId": "mainTitle",
+            "styles": { "fontSize": "3rem", "textAlign": "center", "color": "var(--accent-color-strong)"},
+            "appearanceAnimation": "textFadeIn"
+           },
+           {
+            "targetBlockId": "mainSubtitle",
+            "styles": { "fontSize": "1.2rem", "textAlign": "center", "color": "var(--accent-color-medium)"},
+            "appearanceAnimation": "textFadeInDelayed"
+           }
+        ]
+      }
+    },
+    "contentBlockAnimations": {
+      "textFadeIn": {
+        "type": "sequence",
+        "steps": [
+            { "property": "opacity", "from": 0, "to": 1, "duration": 0.5, "easing": "easeOutQuad" }
+        ]
+      },
+      "textFadeOut": {
+        "type": "sequence",
+        "steps": [
+            { "property": "opacity", "from": 1, "to": 0, "duration": 0.3, "easing": "easeInQuad" }
+        ]
+      },
+      "textFadeInDelayed": {
+        "type": "sequence",
+        "steps": [
+            { "property": "opacity", "from": 0, "to": 1, "duration": 0.5, "delay": 0.2, "easing": "easeOutQuad" }
+        ]
+      },
+      "titleSlideInFromTop": {
+        "type": "sequence",
+        "steps": [
+          { "property": "opacity", "from": 0, "to": 1, "duration": 0.5, "easing": "easeOutExpo" },
+          { "property": "transform", "subProperty": "translateY", "from": "-30px", "to": "0px", "duration": 0.5, "easing": "easeOutExpo", "delay": 0.1 }
+        ]
+      },
+      "imageScaleIn": {
+        "type": "sequence",
+        "steps": [
+          { "property": "opacity", "from": 0, "to": 1, "duration": 0.4, "easing": "easeOutQuad" },
+          { "property": "transform", "subProperty": "scale", "from": 0.8, "to": 1.0, "duration": 0.4, "easing": "easeOutBack", "delay": 0.1 }
+        ]
+      },
+      "imageFadeOut": {
+        "type": "sequence",
+        "steps": [
+          { "property": "opacity", "from": 1, "to": 0, "duration": 0.3, "easing": "easeInQuad" }
+        ]
+      }
+    }
   }
 }
