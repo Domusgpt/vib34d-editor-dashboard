@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D WebGL Performance Diagnostics</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            border-radius: 5px;
+        }
+        
+        .test-section h3 {
+            color: #ffff00;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+        
+        .diagnostic-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+        
+        .diagnostic-label {
+            color: #ccc;
+        }
+        
+        .diagnostic-value {
+            font-weight: bold;
+            color: #00ff00;
+        }
+        
+        .diagnostic-value.warning {
+            color: #ffff00;
+        }
+        
+        .diagnostic-value.error {
+            color: #ff0000;
+        }
+        
+        .diagnostic-value.info {
+            color: #00ffff;
+        }
+        
+        .button {
+            background: rgba(255, 0, 255, 0.3);
+            border: 1px solid #ff00ff;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .button:hover {
+            background: rgba(255, 0, 255, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .button.danger {
+            background: rgba(255, 0, 0, 0.3);
+            border-color: #ff0000;
+        }
+        
+        .button.danger:hover {
+            background: rgba(255, 0, 0, 0.6);
+        }
+        
+        .log-container {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .log-timestamp {
+            color: #666;
+        }
+        
+        .log-info { color: #00ffff; }
+        .log-success { color: #00ff00; }
+        .log-warning { color: #ffff00; }
+        .log-error { color: #ff0000; }
+        
+        .canvas-test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 5px;
+            margin: 15px 0;
+        }
+        
+        .test-canvas {
+            width: 100px;
+            height: 75px;
+            border: 1px solid #333;
+            background: #111;
+        }
+        
+        .performance-meter {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .performance-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 VIB34D WebGL Performance Diagnostics</h1>
+        <p>Comprehensive testing and validation of WebGL optimization systems</p>
+    </div>
+
+    <div class="test-section">
+        <h3>🏥 System Health Check</h3>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">WebGL Support:</span>
+            <span class="diagnostic-value" id="webgl-support">Checking...</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Performance System:</span>
+            <span class="diagnostic-value" id="performance-system">Checking...</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Context Pooling:</span>
+            <span class="diagnostic-value" id="context-pooling">Checking...</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Shader Caching:</span>
+            <span class="diagnostic-value" id="shader-caching">Checking...</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Progressive Enhancement:</span>
+            <span class="diagnostic-value" id="progressive-enhancement">Checking...</span>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 Performance Metrics</h3>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Current FPS:</span>
+            <span class="diagnostic-value" id="current-fps">0</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Memory Usage:</span>
+            <span class="diagnostic-value" id="memory-usage">0 MB</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Active Contexts:</span>
+            <span class="diagnostic-value" id="active-contexts">0</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Shader Cache Hit Rate:</span>
+            <span class="diagnostic-value" id="cache-hit-rate">0%</span>
+        </div>
+        
+        <div>
+            <label style="color: #ccc;">Performance Score:</label>
+            <div class="performance-meter">
+                <div class="performance-bar" id="performance-bar"></div>
+            </div>
+            <span id="performance-score" style="color: #00ff00;">100%</span>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Context Pool Testing</h3>
+        <div>
+            <button class="button" onclick="testContextCreation()">Test Context Creation</button>
+            <button class="button" onclick="testContextPooling()">Test Context Pooling</button>
+            <button class="button" onclick="testContextLimits()">Test Context Limits</button>
+            <button class="button danger" onclick="stressTestContexts()">Stress Test (50 Contexts)</button>
+        </div>
+        
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Available Contexts:</span>
+            <span class="diagnostic-value" id="available-contexts">0</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Pool Efficiency:</span>
+            <span class="diagnostic-value" id="pool-efficiency">0%</span>
+        </div>
+        
+        <div class="canvas-test-grid" id="context-test-grid">
+            <!-- Test canvases will be added here -->
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>⚡ Memory Management Testing</h3>
+        <div>
+            <button class="button" onclick="testMemoryUsage()">Test Memory Usage</button>
+            <button class="button" onclick="testMemoryLeaks()">Test Memory Leaks</button>
+            <button class="button" onclick="testCleanupEfficiency()">Test Cleanup</button>
+            <button class="button danger" onclick="triggerEmergencyCleanup()">Emergency Cleanup</button>
+        </div>
+        
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Heap Used:</span>
+            <span class="diagnostic-value" id="heap-used">0 MB</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Buffer Memory:</span>
+            <span class="diagnostic-value" id="buffer-memory">0 KB</span>
+        </div>
+        <div class="diagnostic-item">
+            <span class="diagnostic-label">Memory Efficiency:</span>
+            <span class="diagnostic-value" id="memory-efficiency">100%</span>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>📝 Test Log</h3>
+        <div class="log-container" id="log-container">
+            <div class="log-entry">
+                <span class="log-timestamp">[00:00:00]</span>
+                <span class="log-info">INFO</span>
+                Diagnostic suite initializing...
+            </div>
+        </div>
+        <div style="margin-top: 10px;">
+            <button class="button" onclick="clearLog()">Clear Log</button>
+            <button class="button" onclick="exportResults()">Export Results</button>
+        </div>
+    </div>
+
+    <!-- Load VIB34D systems -->
+    <script src="VIB34D_WEBGL_FALLBACK.js"></script>
+    <script src="VIB34D_WEBGL_PERFORMANCE_SYSTEM.js"></script>
+    <script src="VIB34D_PROGRESSIVE_ENHANCEMENT_SYSTEM.js"></script>
+
+    <script>
+        // Diagnostic state
+        let diagnostics = {
+            performanceSystem: null,
+            testCanvases: [],
+            performanceHistory: [],
+            isRunning: false,
+            testResults: {}
+        };
+
+        /**
+         * Initialize diagnostic suite
+         */
+        async function initializeDiagnostics() {
+            log('🔬 Starting VIB34D WebGL Diagnostics...', 'info');
+            
+            try {
+                // Test basic WebGL support
+                await testWebGLSupport();
+                
+                // Test performance system
+                await testPerformanceSystem();
+                
+                // Test context pooling
+                await testContextPoolingSystem();
+                
+                // Test shader caching
+                await testShaderCaching();
+                
+                // Test progressive enhancement
+                await testProgressiveEnhancement();
+                
+                // Start continuous monitoring
+                startContinuousMonitoring();
+                
+                log('✅ Diagnostic suite initialized successfully', 'success');
+                
+            } catch (error) {
+                log(`❌ Diagnostic initialization failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        /**
+         * Test WebGL support
+         */
+        async function testWebGLSupport() {
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                if (gl) {
+                    const info = {
+                        vendor: gl.getParameter(gl.VENDOR),
+                        renderer: gl.getParameter(gl.RENDERER),
+                        version: gl.getParameter(gl.VERSION),
+                        maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
+                        maxViewport: gl.getParameter(gl.MAX_VIEWPORT_DIMS)
+                    };
+                    
+                    updateStatus('webgl-support', 'Available', 'success');
+                    log(`WebGL Info: ${info.renderer} | Max Texture: ${info.maxTextureSize}px`, 'info');
+                    
+                    diagnostics.testResults.webglSupport = true;
+                } else {
+                    updateStatus('webgl-support', 'Not Available', 'error');
+                    diagnostics.testResults.webglSupport = false;
+                }
+                
+            } catch (error) {
+                updateStatus('webgl-support', 'Error', 'error');
+                log(`WebGL test error: ${error.message}`, 'error');
+                diagnostics.testResults.webglSupport = false;
+            }
+        }
+
+        /**
+         * Test performance system
+         */
+        async function testPerformanceSystem() {
+            try {
+                if (window.VIB34D_PERFORMANCE_SYSTEM) {
+                    diagnostics.performanceSystem = window.VIB34D_PERFORMANCE_SYSTEM;
+                    
+                    if (diagnostics.performanceSystem.isInitialized) {
+                        updateStatus('performance-system', 'Available', 'success');
+                        log('Performance system connected successfully', 'success');
+                        diagnostics.testResults.performanceSystem = true;
+                    } else {
+                        updateStatus('performance-system', 'Initializing...', 'warning');
+                        await diagnostics.performanceSystem.initialize();
+                        updateStatus('performance-system', 'Available', 'success');
+                        diagnostics.testResults.performanceSystem = true;
+                    }
+                } else {
+                    updateStatus('performance-system', 'Not Available', 'error');
+                    log('Performance system not found', 'warning');
+                    diagnostics.testResults.performanceSystem = false;
+                }
+                
+            } catch (error) {
+                updateStatus('performance-system', 'Error', 'error');
+                log(`Performance system test error: ${error.message}`, 'error');
+                diagnostics.testResults.performanceSystem = false;
+            }
+        }
+
+        /**
+         * Test context pooling system
+         */
+        async function testContextPoolingSystem() {
+            try {
+                if (diagnostics.performanceSystem && diagnostics.performanceSystem.contextPool) {
+                    const pool = diagnostics.performanceSystem.contextPool;
+                    const availableCount = pool.getAvailableCount();
+                    
+                    updateStatus('context-pooling', `Available (${availableCount} contexts)`, 'success');
+                    log(`Context pool ready with ${availableCount} contexts`, 'success');
+                    diagnostics.testResults.contextPooling = true;
+                } else {
+                    updateStatus('context-pooling', 'Not Available', 'error');
+                    diagnostics.testResults.contextPooling = false;
+                }
+                
+            } catch (error) {
+                updateStatus('context-pooling', 'Error', 'error');
+                log(`Context pooling test error: ${error.message}`, 'error');
+                diagnostics.testResults.contextPooling = false;
+            }
+        }
+
+        /**
+         * Test shader caching
+         */
+        async function testShaderCaching() {
+            try {
+                if (diagnostics.performanceSystem && diagnostics.performanceSystem.shaderCache) {
+                    const cache = diagnostics.performanceSystem.shaderCache;
+                    const hitRate = cache.getHitRate();
+                    
+                    updateStatus('shader-caching', `Available (${(hitRate * 100).toFixed(1)}% hit rate)`, 'success');
+                    log('Shader caching system operational', 'success');
+                    diagnostics.testResults.shaderCaching = true;
+                } else {
+                    updateStatus('shader-caching', 'Not Available', 'error');
+                    diagnostics.testResults.shaderCaching = false;
+                }
+                
+            } catch (error) {
+                updateStatus('shader-caching', 'Error', 'error');
+                log(`Shader caching test error: ${error.message}`, 'error');
+                diagnostics.testResults.shaderCaching = false;
+            }
+        }
+
+        /**
+         * Test progressive enhancement
+         */
+        async function testProgressiveEnhancement() {
+            try {
+                if (window.VIB34DProgressiveEnhancementSystem) {
+                    updateStatus('progressive-enhancement', 'Available', 'success');
+                    log('Progressive enhancement system available', 'success');
+                    diagnostics.testResults.progressiveEnhancement = true;
+                } else {
+                    updateStatus('progressive-enhancement', 'Not Available', 'warning');
+                    diagnostics.testResults.progressiveEnhancement = false;
+                }
+                
+            } catch (error) {
+                updateStatus('progressive-enhancement', 'Error', 'error');
+                log(`Progressive enhancement test error: ${error.message}`, 'error');
+                diagnostics.testResults.progressiveEnhancement = false;
+            }
+        }
+
+        /**
+         * Test context creation
+         */
+        async function testContextCreation() {
+            log('🧪 Testing context creation...', 'info');
+            
+            try {
+                const testCanvas = document.createElement('canvas');
+                testCanvas.width = 100;
+                testCanvas.height = 75;
+                testCanvas.className = 'test-canvas';
+                
+                if (diagnostics.performanceSystem) {
+                    const contextInfo = await diagnostics.performanceSystem.contextPool.acquireContext(testCanvas);
+                    
+                    if (contextInfo) {
+                        log(`✅ Context created successfully: ${contextInfo.id}`, 'success');
+                        
+                        // Test basic rendering
+                        const gl = contextInfo.gl;
+                        gl.clearColor(0.0, 1.0, 0.0, 1.0);
+                        gl.clear(gl.COLOR_BUFFER_BIT);
+                        
+                        // Add to test grid
+                        document.getElementById('context-test-grid').appendChild(testCanvas);
+                        diagnostics.testCanvases.push({ canvas: testCanvas, contextInfo });
+                        
+                        // Release after test
+                        setTimeout(() => {
+                            diagnostics.performanceSystem.contextPool.releaseContext(contextInfo);
+                            log(`🔄 Context released: ${contextInfo.id}`, 'info');
+                        }, 3000);
+                        
+                    } else {
+                        log('❌ Failed to create context', 'error');
+                    }
+                } else {
+                    log('⚠️ Performance system not available for context test', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Context creation test failed: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Test context pooling efficiency
+         */
+        async function testContextPooling() {
+            log('🏊 Testing context pooling efficiency...', 'info');
+            
+            const startTime = performance.now();
+            const testCount = 10;
+            const contexts = [];
+            
+            try {
+                // Acquire multiple contexts
+                for (let i = 0; i < testCount; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 50;
+                    canvas.height = 50;
+                    
+                    const contextInfo = await diagnostics.performanceSystem.contextPool.acquireContext(canvas);
+                    if (contextInfo) {
+                        contexts.push(contextInfo);
+                    }
+                }
+                
+                const acquireTime = performance.now() - startTime;
+                
+                // Release all contexts
+                const releaseStart = performance.now();
+                contexts.forEach(contextInfo => {
+                    diagnostics.performanceSystem.contextPool.releaseContext(contextInfo);
+                });
+                const releaseTime = performance.now() - releaseStart;
+                
+                log(`✅ Context pooling test: ${testCount} contexts acquired in ${acquireTime.toFixed(2)}ms, released in ${releaseTime.toFixed(2)}ms`, 'success');
+                
+                const efficiency = Math.max(0, 100 - (acquireTime + releaseTime) / testCount);
+                updateDiagnostic('pool-efficiency', `${efficiency.toFixed(1)}%`);
+                
+            } catch (error) {
+                log(`❌ Context pooling test failed: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Test context limits
+         */
+        async function testContextLimits() {
+            log('🚧 Testing context limits...', 'info');
+            
+            const contexts = [];
+            let maxContexts = 0;
+            
+            try {
+                for (let i = 0; i < 50; i++) {
+                    const canvas = document.createElement('canvas');
+                    const contextInfo = await diagnostics.performanceSystem.contextPool.acquireContext(canvas);
+                    
+                    if (contextInfo) {
+                        contexts.push(contextInfo);
+                        maxContexts++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                log(`📊 Maximum contexts created: ${maxContexts}`, 'info');
+                
+                // Clean up
+                contexts.forEach(contextInfo => {
+                    diagnostics.performanceSystem.contextPool.releaseContext(contextInfo);
+                });
+                
+            } catch (error) {
+                log(`❌ Context limits test failed: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Stress test contexts
+         */
+        async function stressTestContexts() {
+            log('🔥 Starting context stress test...', 'warning');
+            
+            const stressCount = 50;
+            const grid = document.getElementById('context-test-grid');
+            grid.innerHTML = '';
+            
+            try {
+                for (let i = 0; i < stressCount; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 50;
+                    canvas.height = 37;
+                    canvas.className = 'test-canvas';
+                    
+                    if (diagnostics.performanceSystem) {
+                        const contextInfo = await diagnostics.performanceSystem.contextPool.acquireContext(canvas);
+                        
+                        if (contextInfo) {
+                            const gl = contextInfo.gl;
+                            gl.clearColor(Math.random(), Math.random(), Math.random(), 1.0);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            
+                            grid.appendChild(canvas);
+                        }
+                    }
+                    
+                    // Small delay to prevent overwhelming
+                    if (i % 5 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                }
+                
+                log(`✅ Stress test completed: ${stressCount} contexts`, 'success');
+                
+            } catch (error) {
+                log(`❌ Stress test failed: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Test memory usage
+         */
+        function testMemoryUsage() {
+            log('💾 Testing memory usage...', 'info');
+            
+            if (performance.memory) {
+                const usage = performance.memory;
+                const usedMB = (usage.usedJSHeapSize / 1024 / 1024).toFixed(1);
+                const limitMB = (usage.jsHeapSizeLimit / 1024 / 1024).toFixed(1);
+                
+                log(`Memory: ${usedMB}MB used / ${limitMB}MB limit`, 'info');
+                updateDiagnostic('heap-used', `${usedMB} MB`);
+                
+                const efficiency = Math.max(0, 100 - (usage.usedJSHeapSize / usage.jsHeapSizeLimit) * 100);
+                updateDiagnostic('memory-efficiency', `${efficiency.toFixed(1)}%`);
+            } else {
+                log('⚠️ Memory information not available in this browser', 'warning');
+            }
+        }
+
+        /**
+         * Test memory leaks
+         */
+        async function testMemoryLeaks() {
+            log('🔍 Testing for memory leaks...', 'info');
+            
+            const initialMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+            
+            // Create and destroy visualizers repeatedly
+            for (let cycle = 0; cycle < 5; cycle++) {
+                const canvases = [];
+                
+                // Create visualizers
+                for (let i = 0; i < 10; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 100;
+                    canvas.height = 100;
+                    
+                    if (diagnostics.performanceSystem) {
+                        const visualizer = await diagnostics.performanceSystem.createOptimizedVisualizer(canvas);
+                        if (visualizer) {
+                            canvases.push({ canvas, visualizer });
+                        }
+                    }
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Destroy visualizers
+                canvases.forEach(({ visualizer }) => {
+                    if (diagnostics.performanceSystem) {
+                        diagnostics.performanceSystem.disposeVisualizer(visualizer);
+                    }
+                });
+                
+                // Force garbage collection if available
+                if (window.gc) {
+                    window.gc();
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            const finalMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+            const memoryDiff = (finalMemory - initialMemory) / 1024 / 1024;
+            
+            if (memoryDiff > 5) {
+                log(`⚠️ Potential memory leak detected: +${memoryDiff.toFixed(1)}MB`, 'warning');
+            } else {
+                log(`✅ No significant memory leaks detected: ${memoryDiff.toFixed(1)}MB difference`, 'success');
+            }
+        }
+
+        /**
+         * Test cleanup efficiency
+         */
+        function testCleanupEfficiency() {
+            log('🧹 Testing cleanup efficiency...', 'info');
+            
+            if (diagnostics.performanceSystem) {
+                const startTime = performance.now();
+                diagnostics.performanceSystem.disposeAllVisualizers();
+                const cleanupTime = performance.now() - startTime;
+                
+                log(`✅ Cleanup completed in ${cleanupTime.toFixed(2)}ms`, 'success');
+                
+                // Clear test grid
+                document.getElementById('context-test-grid').innerHTML = '';
+                diagnostics.testCanvases = [];
+            }
+        }
+
+        /**
+         * Trigger emergency cleanup
+         */
+        function triggerEmergencyCleanup() {
+            log('🚨 Triggering emergency cleanup...', 'warning');
+            
+            if (diagnostics.performanceSystem) {
+                diagnostics.performanceSystem.emergencyCleanup();
+            }
+            
+            // Clear test displays
+            document.getElementById('context-test-grid').innerHTML = '';
+            diagnostics.testCanvases = [];
+            
+            // Force garbage collection
+            if (window.gc) {
+                window.gc();
+            }
+            
+            log('✅ Emergency cleanup completed', 'success');
+        }
+
+        /**
+         * Start continuous monitoring
+         */
+        function startContinuousMonitoring() {
+            setInterval(() => {
+                updatePerformanceMetrics();
+            }, 1000);
+        }
+
+        /**
+         * Update performance metrics
+         */
+        function updatePerformanceMetrics() {
+            if (diagnostics.performanceSystem) {
+                const stats = diagnostics.performanceSystem.getPerformanceStats();
+                
+                updateDiagnostic('current-fps', stats.fps || 0);
+                updateDiagnostic('active-contexts', stats.activeVisualizers || 0);
+                updateDiagnostic('available-contexts', stats.availableContexts || 0);
+                updateDiagnostic('cache-hit-rate', `${((stats.shaderCacheHitRate || 0) * 100).toFixed(1)}%`);
+                
+                if (stats.memoryUsage) {
+                    updateDiagnostic('memory-usage', `${(stats.memoryUsage.used / (1024 * 1024)).toFixed(1)} MB`);
+                }
+                
+                // Update performance bar
+                const performanceScore = Math.min(100, (stats.fps / 60) * 100);
+                document.getElementById('performance-bar').style.width = `${performanceScore}%`;
+                document.getElementById('performance-score').textContent = `${performanceScore.toFixed(0)}%`;
+            }
+            
+            // Update memory metrics
+            if (performance.memory) {
+                const usedMB = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+                updateDiagnostic('heap-used', `${usedMB} MB`);
+            }
+        }
+
+        /**
+         * Update diagnostic display
+         */
+        function updateDiagnostic(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+
+        /**
+         * Update status with styling
+         */
+        function updateStatus(id, text, type) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = text;
+                element.className = `diagnostic-value ${type}`;
+            }
+        }
+
+        /**
+         * Log function with timestamps
+         */
+        function log(message, level = 'info') {
+            const container = document.getElementById('log-container');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-${level}">${level.toUpperCase()}</span>
+                ${message}
+            `;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            
+            console.log(`[Diagnostics] ${level.toUpperCase()}: ${message}`);
+        }
+
+        /**
+         * Clear log
+         */
+        function clearLog() {
+            document.getElementById('log-container').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+
+        /**
+         * Export test results
+         */
+        function exportResults() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                testResults: diagnostics.testResults,
+                systemInfo: {
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    webglSupport: diagnostics.testResults.webglSupport
+                },
+                performanceMetrics: diagnostics.performanceSystem ? 
+                    diagnostics.performanceSystem.getPerformanceStats() : null
+            };
+            
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vib34d-diagnostics-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            log('📄 Diagnostic results exported', 'success');
+        }
+
+        // Initialize diagnostics when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeDiagnostics();
+        });
+
+        console.log('🔬 VIB34D WebGL Diagnostics Test Suite loaded');
+    </script>
+</body>
+</html>

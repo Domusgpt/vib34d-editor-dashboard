@@ -1,18 +1,63 @@
-Traceback (most recent call last):
-  File "<frozen runpy>", line 198, in _run_module_as_main
-  File "<frozen runpy>", line 88, in _run_code
-  File "/usr/lib/python3.12/http/server.py", line 1314, in <module>
-    test(
-  File "/usr/lib/python3.12/http/server.py", line 1261, in test
-    with ServerClass(addr, HandlerClass) as httpd:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.12/socketserver.py", line 457, in __init__
-    self.server_bind()
-  File "/usr/lib/python3.12/http/server.py", line 1308, in server_bind
-    return super().server_bind()
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.12/http/server.py", line 136, in server_bind
-    socketserver.TCPServer.server_bind(self)
-  File "/usr/lib/python3.12/socketserver.py", line 473, in server_bind
-    self.socket.bind(self.server_address)
-OSError: [Errno 98] Address already in use
+127.0.0.1 - - [26/Jun/2025 11:22:57] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:22:57] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:22:57] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:22:58] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:22:58] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:23:02] "GET /VIB34D_EDITOR_DASHBOARD.html HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:23:05] "GET /VIB34D_EDITOR_DASHBOARD.html HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:23:04] "GET /VIB34D_WORKING_CORE_ARCHITECTURE.js HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:23:05] "GET /VIB34D_MOIRE_RGB_SYSTEM.js HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:23:05] "GET /VIB34D_INTEGRATED_SYSTEM_BRIDGE.js HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:23:05] "GET /VIB34D_WEBGL_FALLBACK.js HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:23:06] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:23:06] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:23:07] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:23:07] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:23:14] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:23:14] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:23:15] "GET /VIB34D_COMPLETE_INTEGRATED_DEMO.html HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:23:15] "GET /VIB34D_WORKING_CORE_ARCHITECTURE.js HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:23:18] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:23:18] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:23:34] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:23:34] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:01] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:01] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:01] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:24:01] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:01] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:08] "GET /VIB34D_DASHBOARD_FEATURE_PROOF.js HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:24:08] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:08] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:10] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:10] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:16] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:24:17] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:17] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:18] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:18] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:19] "GET /VIB34D_PRODUCTION_SPECTACULAR.html HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:24:19] "GET /VIB34D_WORKING_CORE_ARCHITECTURE.js HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:24:19] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:19] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:19] "GET /VIB34D_CENTRAL_STATE_MANAGER.js HTTP/1.1" 200 -
+127.0.0.1 - - [26/Jun/2025 11:24:22] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:22] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:24:50] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:24:50] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:26:02] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:26:02] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:26:07] "GET /VIB34D_COMPLETE_INTEGRATED_DEMO.html HTTP/1.1" 304 -
+127.0.0.1 - - [26/Jun/2025 11:26:07] "GET /VIB34D_WORKING_CORE_ARCHITECTURE.js HTTP/1.1" 304 -
+127.0.0.1 - - [26/Jun/2025 11:26:07] "GET /VIB34D_INTEGRATED_SYSTEM_BRIDGE.js HTTP/1.1" 304 -
+127.0.0.1 - - [26/Jun/2025 11:26:07] "GET /VIB34D_MOIRE_RGB_SYSTEM.js HTTP/1.1" 304 -
+127.0.0.1 - - [26/Jun/2025 11:26:08] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:26:08] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:26:26] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:26:26] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:26:26] "GET /VIB34D_EDITOR_DASHBOARD.html HTTP/1.1" 304 -
+127.0.0.1 - - [26/Jun/2025 11:26:27] "GET /VIB34D_WEBGL_FALLBACK.js HTTP/1.1" 304 -
+127.0.0.1 - - [26/Jun/2025 11:26:29] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:26:29] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -
+127.0.0.1 - - [26/Jun/2025 11:26:57] code 404, message File not found
+127.0.0.1 - - [26/Jun/2025 11:26:57] "GET /flutter_service_worker.js?v=3500589462 HTTP/1.1" 404 -

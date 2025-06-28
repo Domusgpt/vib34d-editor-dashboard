@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D WebGL Comprehensive Test Suite - 33+ Hypercube Performance</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 0, 255, 0.1);
+            border: 2px solid #ff00ff;
+            border-radius: 10px;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .control-group label {
+            color: #00ffff;
+            font-size: 12px;
+        }
+        
+        .control-group input, .control-group select, .control-group button {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #666;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-family: inherit;
+        }
+        
+        .control-group button {
+            background: rgba(255, 0, 255, 0.3);
+            border-color: #ff00ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .control-group button:hover {
+            background: rgba(255, 0, 255, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .performance-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .performance-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        
+        .performance-panel h3 {
+            color: #ffff00;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .metric-label {
+            color: #ccc;
+        }
+        
+        .metric-value {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .metric-value.warning {
+            color: #ffff00;
+        }
+        
+        .metric-value.danger {
+            color: #ff0000;
+        }
+        
+        .visualizer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .visualizer-container {
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            border-radius: 5px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .visualizer-container:hover {
+            border-color: #ff00ff;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+        }
+        
+        .visualizer-container.active {
+            border-color: #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+        
+        .visualizer-canvas {
+            width: 100%;
+            height: 150px;
+            display: block;
+        }
+        
+        .visualizer-info {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            pointer-events: none;
+        }
+        
+        .visualizer-performance {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #00ff00;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 9px;
+            pointer-events: none;
+        }
+        
+        .test-log {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+            border-bottom: 1px solid #222;
+        }
+        
+        .log-timestamp {
+            color: #666;
+        }
+        
+        .log-level-info { color: #00ffff; }
+        .log-level-warn { color: #ffff00; }
+        .log-level-error { color: #ff0000; }
+        .log-level-success { color: #00ff00; }
+        
+        .stress-test-controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .stress-button {
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid #ff0000;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .stress-button:hover {
+            background: rgba(255, 0, 0, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .stress-button.running {
+            background: rgba(255, 255, 0, 0.3);
+            border-color: #ffff00;
+            color: #000;
+        }
+        
+        @media (max-width: 768px) {
+            .visualizer-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            
+            .performance-dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧪 VIB34D WebGL Comprehensive Test Suite</h1>
+        <p>Testing performance with 33+ simultaneous hypercube visualizations</p>
+        <p id="browser-info">Detecting browser capabilities...</p>
+    </div>
+
+    <div class="test-controls">
+        <div class="control-group">
+            <label>Number of Visualizers</label>
+            <input type="number" id="visualizer-count" min="1" max="50" value="8">
+        </div>
+        
+        <div class="control-group">
+            <label>Quality Level</label>
+            <select id="quality-level">
+                <option value="0.1">Minimum (0.1x)</option>
+                <option value="0.3">Low (0.3x)</option>
+                <option value="0.5">Medium (0.5x)</option>
+                <option value="0.8">High (0.8x)</option>
+                <option value="1.0" selected>Maximum (1.0x)</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Test Mode</label>
+            <select id="test-mode">
+                <option value="single">Single Geometry</option>
+                <option value="mixed" selected>Mixed Geometries</option>
+                <option value="hypercube">Hypercube Only</option>
+                <option value="sphere">Sphere Only</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Animation Speed</label>
+            <input type="range" id="animation-speed" min="0.1" max="3.0" step="0.1" value="1.0">
+            <span id="speed-value">1.0x</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Actions</label>
+            <button onclick="startTest()">Start Test</button>
+        </div>
+        
+        <div class="control-group">
+            <label>Controls</label>
+            <button onclick="stopTest()">Stop All</button>
+        </div>
+        
+        <div class="control-group">
+            <label>Cleanup</label>
+            <button onclick="clearAll()">Clear All</button>
+        </div>
+    </div>
+
+    <div class="performance-dashboard">
+        <div class="performance-panel">
+            <h3>📊 Performance Metrics</h3>
+            <div class="metric">
+                <span class="metric-label">FPS:</span>
+                <span class="metric-value" id="fps-value">0</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Frame Time:</span>
+                <span class="metric-value" id="frame-time-value">0ms</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Active Visualizers:</span>
+                <span class="metric-value" id="active-visualizers">0</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">WebGL Contexts:</span>
+                <span class="metric-value" id="webgl-contexts">0</span>
+            </div>
+        </div>
+        
+        <div class="performance-panel">
+            <h3>💾 Memory Usage</h3>
+            <div class="metric">
+                <span class="metric-label">JS Heap Used:</span>
+                <span class="metric-value" id="memory-used">0 MB</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">JS Heap Total:</span>
+                <span class="metric-value" id="memory-total">0 MB</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Buffer Memory:</span>
+                <span class="metric-value" id="buffer-memory">0 KB</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Texture Memory:</span>
+                <span class="metric-value" id="texture-memory">0 KB</span>
+            </div>
+        </div>
+        
+        <div class="performance-panel">
+            <h3>⚙️ System Info</h3>
+            <div class="metric">
+                <span class="metric-label">WebGL Support:</span>
+                <span class="metric-value" id="webgl-support">Checking...</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Max Contexts:</span>
+                <span class="metric-value" id="max-contexts">Unknown</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Shader Cache Hit Rate:</span>
+                <span class="metric-value" id="cache-hit-rate">0%</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Performance Status:</span>
+                <span class="metric-value" id="performance-status">Good</span>
+            </div>
+        </div>
+        
+        <div class="performance-panel">
+            <h3>🎯 Quality Scaling</h3>
+            <div class="metric">
+                <span class="metric-label">Auto Scaling:</span>
+                <span class="metric-value" id="auto-scaling">Enabled</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Current Quality:</span>
+                <span class="metric-value" id="current-quality">1.0x</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Quality Adjustments:</span>
+                <span class="metric-value" id="quality-adjustments">0</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Target FPS:</span>
+                <span class="metric-value" id="target-fps">60</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="stress-test-controls">
+        <button class="stress-button" onclick="stressTest33()">33 Hypercube Stress Test</button>
+        <button class="stress-button" onclick="stressTestGradual()">Gradual Load Test</button>
+        <button class="stress-button" onclick="stressTestMemory()">Memory Pressure Test</button>
+        <button class="stress-button" onclick="emergencyCleanup()">Emergency Cleanup</button>
+    </div>
+
+    <div id="visualizer-grid" class="visualizer-grid">
+        <!-- Visualizer canvases will be added here dynamically -->
+    </div>
+
+    <div class="test-log">
+        <h3>📝 Test Log</h3>
+        <div id="log-content">
+            <div class="log-entry">
+                <span class="log-timestamp">[00:00:00]</span>
+                <span class="log-level-info">INFO</span>
+                Test suite initializing...
+            </div>
+        </div>
+    </div>
+
+    <!-- Load VIB34D systems -->
+    <script src="VIB34D_WORKING_CORE_ARCHITECTURE.js"></script>
+    <script src="VIB34D_WEBGL_FALLBACK.js"></script>
+    <script src="VIB34D_WEBGL_PERFORMANCE_SYSTEM.js"></script>
+
+    <script>
+        // Global test state
+        let testSuite = {
+            visualizers: new Map(),
+            performanceSystem: null,
+            isRunning: false,
+            startTime: null,
+            frameCount: 0,
+            lastFrameTime: 0,
+            currentFPS: 0,
+            qualityAdjustments: 0
+        };
+
+        // Geometry types for testing
+        const geometryTypes = [
+            'hypercube', 'hypersphere', 'hypertetrahedron', 
+            'torus', 'klein', 'fractal', 'wave', 'crystal'
+        ];
+
+        /**
+         * Initialize test suite
+         */
+        async function initializeTestSuite() {
+            log('Initializing VIB34D WebGL Test Suite...', 'info');
+            
+            try {
+                // Detect browser capabilities
+                detectBrowserCapabilities();
+                
+                // Initialize performance system
+                if (window.VIB34D_PERFORMANCE_SYSTEM) {
+                    testSuite.performanceSystem = window.VIB34D_PERFORMANCE_SYSTEM;
+                    await testSuite.performanceSystem.initialize();
+                    log('Performance system initialized', 'success');
+                } else {
+                    log('Performance system not available, using fallback', 'warn');
+                }
+                
+                // Setup UI controls
+                setupUIControls();
+                
+                // Start performance monitoring
+                startPerformanceMonitoring();
+                
+                log('Test suite ready for testing!', 'success');
+                
+            } catch (error) {
+                log(`Initialization failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        /**
+         * Detect browser and WebGL capabilities
+         */
+        function detectBrowserCapabilities() {
+            const browserInfo = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                webgl: false,
+                webgl2: false,
+                maxTextureSize: 0,
+                maxViewportDims: [0, 0]
+            };
+
+            // Test WebGL support
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    browserInfo.webgl = true;
+                    browserInfo.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+                    browserInfo.maxViewportDims = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+                    
+                    // Test WebGL2
+                    const gl2 = canvas.getContext('webgl2');
+                    if (gl2) {
+                        browserInfo.webgl2 = true;
+                    }
+                }
+            } catch (e) {
+                browserInfo.webgl = false;
+            }
+
+            // Update UI
+            const browserInfoEl = document.getElementById('browser-info');
+            browserInfoEl.textContent = `${browserInfo.platform} | WebGL: ${browserInfo.webgl ? 'Supported' : 'Not Supported'} | Max Texture: ${browserInfo.maxTextureSize}px`;
+
+            document.getElementById('webgl-support').textContent = browserInfo.webgl ? 'Available' : 'Not Available';
+            document.getElementById('webgl-support').className = `metric-value ${browserInfo.webgl ? '' : 'danger'}`;
+
+            log(`Browser capabilities detected: WebGL ${browserInfo.webgl ? 'supported' : 'not supported'}`, browserInfo.webgl ? 'info' : 'warn');
+        }
+
+        /**
+         * Setup UI control bindings
+         */
+        function setupUIControls() {
+            // Animation speed control
+            const speedSlider = document.getElementById('animation-speed');
+            const speedValue = document.getElementById('speed-value');
+            
+            speedSlider.addEventListener('input', (e) => {
+                const speed = parseFloat(e.target.value);
+                speedValue.textContent = speed.toFixed(1) + 'x';
+                
+                // Update all active visualizers
+                testSuite.visualizers.forEach(visualizer => {
+                    if (visualizer.updateParameters) {
+                        visualizer.updateParameters({ rotationSpeed: speed * 0.5 });
+                    }
+                });
+            });
+
+            // Quality level control
+            const qualitySelect = document.getElementById('quality-level');
+            qualitySelect.addEventListener('change', (e) => {
+                const quality = parseFloat(e.target.value);
+                
+                testSuite.visualizers.forEach(visualizer => {
+                    if (visualizer.setQualityLevel) {
+                        visualizer.setQualityLevel(quality);
+                    }
+                });
+                
+                log(`Quality set to ${quality}x for all visualizers`, 'info');
+            });
+        }
+
+        /**
+         * Start the main test with specified number of visualizers
+         */
+        async function startTest() {
+            if (testSuite.isRunning) {
+                log('Test already running', 'warn');
+                return;
+            }
+
+            const count = parseInt(document.getElementById('visualizer-count').value);
+            const testMode = document.getElementById('test-mode').value;
+            
+            log(`Starting test with ${count} visualizers in ${testMode} mode`, 'info');
+            
+            testSuite.isRunning = true;
+            testSuite.startTime = Date.now();
+            
+            try {
+                await createVisualizers(count, testMode);
+                log(`Test started successfully with ${count} visualizers`, 'success');
+            } catch (error) {
+                log(`Test start failed: ${error.message}`, 'error');
+                testSuite.isRunning = false;
+            }
+        }
+
+        /**
+         * Create specified number of visualizers
+         */
+        async function createVisualizers(count, mode) {
+            const grid = document.getElementById('visualizer-grid');
+            
+            for (let i = 0; i < count; i++) {
+                try {
+                    // Determine geometry type based on mode
+                    let geometryType;
+                    switch (mode) {
+                        case 'hypercube':
+                            geometryType = 'hypercube';
+                            break;
+                        case 'sphere':
+                            geometryType = 'hypersphere';
+                            break;
+                        case 'single':
+                            geometryType = 'hypercube';
+                            break;
+                        case 'mixed':
+                        default:
+                            geometryType = geometryTypes[i % geometryTypes.length];
+                            break;
+                    }
+
+                    const visualizerData = await createSingleVisualizer(i, geometryType);
+                    if (visualizerData) {
+                        testSuite.visualizers.set(visualizerData.id, visualizerData);
+                        grid.appendChild(visualizerData.container);
+                        
+                        log(`Created visualizer ${i + 1}/${count}: ${geometryType}`, 'info');
+                    }
+                    
+                    // Small delay to prevent overwhelming the system
+                    if (i > 0 && i % 4 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                    
+                } catch (error) {
+                    log(`Failed to create visualizer ${i + 1}: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        /**
+         * Create a single visualizer instance
+         */
+        async function createSingleVisualizer(index, geometryType) {
+            const id = `visualizer-${index}-${Date.now()}`;
+            
+            // Create container
+            const container = document.createElement('div');
+            container.className = 'visualizer-container';
+            container.id = id;
+            
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.className = 'visualizer-canvas';
+            canvas.width = 200;
+            canvas.height = 150;
+            
+            // Create info overlay
+            const info = document.createElement('div');
+            info.className = 'visualizer-info';
+            info.textContent = `${index + 1}: ${geometryType}`;
+            
+            // Create performance overlay
+            const performance = document.createElement('div');
+            performance.className = 'visualizer-performance';
+            performance.textContent = '0ms';
+            
+            container.appendChild(canvas);
+            container.appendChild(info);
+            container.appendChild(performance);
+
+            // Create visualizer
+            let visualizer = null;
+            
+            try {
+                if (testSuite.performanceSystem) {
+                    // Use optimized performance system
+                    visualizer = await testSuite.performanceSystem.createOptimizedVisualizer(canvas, {
+                        geometryType: geometryType,
+                        dimension: 4.0,
+                        morphFactor: 0.7,
+                        gridDensity: 8.0,
+                        rotationSpeed: 0.5,
+                        patternIntensity: 1.0
+                    });
+                } else {
+                    // Use fallback system
+                    if (window.VIB34D_WEBGL_FALLBACK) {
+                        visualizer = window.VIB34D_WEBGL_FALLBACK.createFallbackVisualizer(canvas, {
+                            geometryType: geometryType,
+                            gridDensity: 8.0,
+                            rotationSpeed: 0.5
+                        });
+                    }
+                }
+
+                if (visualizer) {
+                    visualizer.start();
+                    
+                    // Add click handler for focus
+                    container.addEventListener('click', () => {
+                        document.querySelectorAll('.visualizer-container').forEach(c => c.classList.remove('active'));
+                        container.classList.add('active');
+                        log(`Focused on visualizer ${index + 1}: ${geometryType}`, 'info');
+                    });
+                }
+                
+            } catch (error) {
+                log(`Error creating visualizer ${index + 1}: ${error.message}`, 'error');
+                
+                // Create error placeholder
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#ff0000';
+                    ctx.font = '12px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('ERROR', canvas.width/2, canvas.height/2);
+                }
+            }
+
+            return {
+                id,
+                container,
+                canvas,
+                visualizer,
+                geometryType,
+                performance
+            };
+        }
+
+        /**
+         * Stop all visualizers
+         */
+        function stopTest() {
+            log('Stopping all visualizers...', 'info');
+            
+            testSuite.visualizers.forEach(visualizerData => {
+                if (visualizerData.visualizer && visualizerData.visualizer.stop) {
+                    visualizerData.visualizer.stop();
+                }
+            });
+            
+            testSuite.isRunning = false;
+            log('All visualizers stopped', 'success');
+        }
+
+        /**
+         * Clear all visualizers and cleanup
+         */
+        function clearAll() {
+            log('Clearing all visualizers and cleaning up...', 'info');
+            
+            // Stop and dispose all visualizers
+            testSuite.visualizers.forEach(visualizerData => {
+                if (testSuite.performanceSystem) {
+                    testSuite.performanceSystem.disposeVisualizer(visualizerData.visualizer);
+                } else if (visualizerData.visualizer && visualizerData.visualizer.destroy) {
+                    visualizerData.visualizer.destroy();
+                }
+            });
+            
+            // Clear DOM
+            const grid = document.getElementById('visualizer-grid');
+            grid.innerHTML = '';
+            
+            // Reset state
+            testSuite.visualizers.clear();
+            testSuite.isRunning = false;
+            testSuite.qualityAdjustments = 0;
+            
+            log('All visualizers cleared and memory cleaned up', 'success');
+        }
+
+        /**
+         * Stress test with 33 hypercubes
+         */
+        async function stressTest33() {
+            log('🚨 Starting 33 Hypercube Stress Test...', 'warn');
+            
+            document.getElementById('visualizer-count').value = '33';
+            document.getElementById('test-mode').value = 'hypercube';
+            
+            await startTest();
+        }
+
+        /**
+         * Gradual load test
+         */
+        async function stressTestGradual() {
+            log('📈 Starting gradual load test...', 'info');
+            
+            const maxVisualizers = 25;
+            const batchSize = 3;
+            const delay = 1000;
+            
+            for (let i = batchSize; i <= maxVisualizers; i += batchSize) {
+                if (!testSuite.isRunning) break;
+                
+                log(`Adding ${batchSize} more visualizers (total: ${i})`, 'info');
+                
+                document.getElementById('visualizer-count').value = i.toString();
+                await startTest();
+                
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                // Check performance and stop if degraded
+                if (testSuite.currentFPS < 30) {
+                    log('Performance degraded, stopping gradual test', 'warn');
+                    break;
+                }
+            }
+        }
+
+        /**
+         * Memory pressure test
+         */
+        async function stressTestMemory() {
+            log('💾 Starting memory pressure test...', 'warn');
+            
+            // Create and destroy visualizers repeatedly to test memory management
+            for (let cycle = 0; cycle < 5; cycle++) {
+                log(`Memory test cycle ${cycle + 1}/5`, 'info');
+                
+                // Create many visualizers
+                document.getElementById('visualizer-count').value = '20';
+                await startTest();
+                
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Clear them
+                clearAll();
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Force garbage collection if available
+                if (window.gc) {
+                    window.gc();
+                }
+            }
+            
+            log('Memory pressure test completed', 'success');
+        }
+
+        /**
+         * Emergency cleanup
+         */
+        function emergencyCleanup() {
+            log('🚨 EMERGENCY CLEANUP TRIGGERED', 'error');
+            
+            if (testSuite.performanceSystem) {
+                testSuite.performanceSystem.emergencyCleanup();
+            }
+            
+            clearAll();
+            
+            // Force garbage collection
+            if (window.gc) {
+                window.gc();
+            }
+            
+            log('Emergency cleanup completed', 'success');
+        }
+
+        /**
+         * Start performance monitoring
+         */
+        function startPerformanceMonitoring() {
+            let lastTime = performance.now();
+            let frameCount = 0;
+            
+            function updatePerformanceMetrics() {
+                const now = performance.now();
+                frameCount++;
+                
+                // Update FPS every second
+                if (now - lastTime >= 1000) {
+                    testSuite.currentFPS = Math.round(frameCount * 1000 / (now - lastTime));
+                    frameCount = 0;
+                    lastTime = now;
+                    
+                    updatePerformanceUI();
+                }
+                
+                requestAnimationFrame(updatePerformanceMetrics);
+            }
+            
+            updatePerformanceMetrics();
+        }
+
+        /**
+         * Update performance UI
+         */
+        function updatePerformanceUI() {
+            // FPS
+            const fpsEl = document.getElementById('fps-value');
+            fpsEl.textContent = testSuite.currentFPS;
+            fpsEl.className = `metric-value ${testSuite.currentFPS < 30 ? 'danger' : testSuite.currentFPS < 50 ? 'warning' : ''}`;
+            
+            // Frame time
+            const frameTime = testSuite.currentFPS > 0 ? (1000 / testSuite.currentFPS).toFixed(1) : 0;
+            document.getElementById('frame-time-value').textContent = frameTime + 'ms';
+            
+            // Active visualizers
+            document.getElementById('active-visualizers').textContent = testSuite.visualizers.size;
+            
+            // Memory (if available)
+            if (performance.memory) {
+                const memUsed = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+                const memTotal = (performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(1);
+                
+                document.getElementById('memory-used').textContent = memUsed + ' MB';
+                document.getElementById('memory-total').textContent = memTotal + ' MB';
+            }
+            
+            // Performance system stats
+            if (testSuite.performanceSystem) {
+                const stats = testSuite.performanceSystem.getPerformanceStats();
+                
+                document.getElementById('webgl-contexts').textContent = stats.availableContexts;
+                document.getElementById('cache-hit-rate').textContent = (stats.shaderCacheHitRate * 100).toFixed(1) + '%';
+                document.getElementById('buffer-memory').textContent = (stats.memoryUsage.bufferMemory / 1024).toFixed(1) + ' KB';
+                document.getElementById('texture-memory').textContent = (stats.memoryUsage.textureMemory / 1024).toFixed(1) + ' KB';
+                
+                const perfStatus = document.getElementById('performance-status');
+                perfStatus.textContent = stats.isPerformanceGood ? 'Good' : 'Degraded';
+                perfStatus.className = `metric-value ${stats.isPerformanceGood ? '' : 'warning'}`;
+            }
+            
+            // Quality adjustments
+            document.getElementById('quality-adjustments').textContent = testSuite.qualityAdjustments;
+        }
+
+        /**
+         * Log function with timestamps and styling
+         */
+        function log(message, level = 'info') {
+            const logContent = document.getElementById('log-content');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-level-${level}">${level.toUpperCase()}</span>
+                ${message}
+            `;
+            
+            logContent.appendChild(entry);
+            logContent.scrollTop = logContent.scrollHeight;
+            
+            // Also log to console
+            console.log(`[VIB34D Test] ${level.toUpperCase()}: ${message}`);
+        }
+
+        // Initialize test suite when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeTestSuite();
+        });
+
+        // Handle page unload cleanup
+        window.addEventListener('beforeunload', () => {
+            clearAll();
+        });
+
+        console.log('🧪 VIB34D WebGL Comprehensive Test Suite loaded');
+    </script>
+</body>
+</html>

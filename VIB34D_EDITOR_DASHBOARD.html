@@ -601,6 +601,8 @@
     <script src="VIB34D_MOIRE_RGB_SYSTEM.js"></script>
     <script src="VIB34D_INTEGRATED_SYSTEM_BRIDGE.js"></script>
     <script src="VIB34D_WEBGL_FALLBACK.js"></script>
+    <script src="VIB34D_WEBGL_PERFORMANCE_SYSTEM.js"></script>
+    <script src="VIB34D_PROGRESSIVE_ENHANCEMENT_SYSTEM.js"></script>
     <script>
         // Editor Dashboard System
         class VIB34DEditorDashboard {
@@ -613,11 +615,45 @@
                 
                 // Initialize integrated system bridge
                 this.systemBridge = null;
+                
+                // Initialize performance optimization systems
+                this.performanceSystem = null;
+                this.progressiveEnhancement = null;
+                this.optimizedRendering = true;
+                
+                this.initializePerformanceSystems();
                 this.initializeSystemBridge();
                 
                 this.initialize();
             }
             
+            async initializePerformanceSystems() {
+                try {
+                    // Initialize WebGL Performance System
+                    if (window.VIB34D_PERFORMANCE_SYSTEM) {
+                        this.performanceSystem = window.VIB34D_PERFORMANCE_SYSTEM;
+                        await this.performanceSystem.initialize();
+                        console.log('✅ WebGL Performance System connected to editor');
+                        
+                        // Initialize Progressive Enhancement
+                        if (window.VIB34DProgressiveEnhancementManager) {
+                            this.progressiveEnhancement = new VIB34DProgressiveEnhancementManager(
+                                this, 
+                                this.performanceSystem
+                            );
+                            await this.progressiveEnhancement.initialize();
+                            console.log('✅ Progressive Enhancement enabled for editor');
+                        }
+                    } else {
+                        console.warn('⚠️ Performance system not available, using standard rendering');
+                        this.optimizedRendering = false;
+                    }
+                } catch (error) {
+                    console.error('Failed to initialize performance systems:', error);
+                    this.optimizedRendering = false;
+                }
+            }
+
             async initializeSystemBridge() {
                 try {
                     if (window.VIB34DIntegratedSystemBridge) {
@@ -675,7 +711,13 @@
                     const x = e.clientX - rect.left;
                     const y = e.clientY - rect.top;
                     
-                    this.createElement(data, x, y);
+                    if (data.action === 'move') {
+                        // Moving existing element
+                        this.moveElement(data.elementId, x - data.offsetX, y - data.offsetY);
+                    } else {
+                        // Creating new element
+                        this.createElement(data, x, y);
+                    }
                 });
             }
             
@@ -703,7 +745,21 @@
                 // Make draggable
                 element.draggable = true;
                 element.addEventListener('dragstart', (e) => {
-                    // Implement moving existing elements
+                    // Store element ID for repositioning
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        action: 'move',
+                        elementId: elementId,
+                        offsetX: e.offsetX,
+                        offsetY: e.offsetY
+                    }));
+                    element.style.opacity = '0.5';
+                    element.style.zIndex = '1000';
+                });
+                
+                element.addEventListener('dragend', (e) => {
+                    element.style.opacity = '1';
+                    element.style.zIndex = '';
                 });
                 
                 // Make selectable
@@ -754,8 +810,105 @@
                 console.log(`Created ${data.type} element with ${data.geometry} geometry`);
             }
             
-            initializeElementVisualizer(elementData, canvas) {
+            moveElement(elementId, x, y) {
+                const elementData = this.elements.get(elementId);
+                if (!elementData) return;
+                
+                // Update position in data
+                elementData.position.x = Math.max(0, x);
+                elementData.position.y = Math.max(0, y);
+                
+                // Update DOM element position
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.style.left = `${elementData.position.x}px`;
+                    element.style.top = `${elementData.position.y}px`;
+                }
+                
+                // Update properties panel if this element is selected
+                if (this.selectedElement === elementId) {
+                    this.updatePropertiesPanel(elementId);
+                }
+                
+                console.log(`Moved ${elementId} to (${elementData.position.x}, ${elementData.position.y})`);
+            }
+            
+            updateElementName(elementId, newName) {
+                const elementData = this.elements.get(elementId);
+                if (!elementData) return;
+                
+                elementData.name = newName;
+                
+                // Update DOM element content
+                const element = document.getElementById(elementId);
+                if (element) {
+                    const nameDiv = element.querySelector('div:first-child');
+                    if (nameDiv) {
+                        nameDiv.textContent = newName;
+                    }
+                }
+                
+                this.generateCodeForElement(elementId);
+                console.log(`Updated element name: ${elementId} -> ${newName}`);
+            }
+            
+            updateElementPosition(elementId, axis, value) {
+                const elementData = this.elements.get(elementId);
+                if (!elementData) return;
+                
+                const numValue = parseFloat(value);
+                elementData.position[axis] = Math.max(0, numValue);
+                
+                // Update DOM element position
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.style[axis === 'x' ? 'left' : 'top'] = `${elementData.position[axis]}px`;
+                }
+                
+                this.generateCodeForElement(elementId);
+                console.log(`Updated element position: ${elementId} ${axis} = ${elementData.position[axis]}`);
+            }
+            
+            async initializeElementVisualizer(elementData, canvas) {
                 try {
+                    // Ensure canvas has proper dimensions before initializing
+                    if (!canvas.width || !canvas.height) {
+                        canvas.width = 200;
+                        canvas.height = 120;
+                    }
+                    
+                    // Small delay to avoid context creation conflicts
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    
+                    // Use optimized performance system if available
+                    if (this.optimizedRendering && this.performanceSystem) {
+                        console.log(`🚀 Using optimized WebGL system for ${elementData.id}`);
+                        
+                        const optimizedVisualizer = await this.performanceSystem.createOptimizedVisualizer(canvas, {
+                            geometryType: elementData.geometry,
+                            dimension: elementData.properties.dimension,
+                            morphFactor: elementData.properties.morphFactor,
+                            gridDensity: elementData.properties.gridDensity,
+                            rotationSpeed: elementData.properties.rotationSpeed,
+                            patternIntensity: 1.5,
+                            lineThickness: 0.03
+                        });
+                        
+                        if (optimizedVisualizer) {
+                            optimizedVisualizer.start();
+                            elementData.visualizer = optimizedVisualizer;
+                            
+                            // Mark element as having optimized visualizer
+                            document.getElementById(elementData.id).classList.add('has-visualizer', 'optimized-renderer');
+                            console.log(`✅ Optimized visualizer created for ${elementData.id}`);
+                            return;
+                        } else {
+                            console.warn(`Failed to create optimized visualizer for ${elementData.id}, falling back to standard systems`);
+                        }
+                    }
+                    
+                    // Fallback to standard systems
+                    
                     // Check for WebGL fallback system first
                     if (window.VIB34D_WEBGL_FALLBACK && !window.VIB34D_WEBGL_FALLBACK.isWebGLSupported) {
                         console.log(`🎨 Using Canvas 2D fallback for ${elementData.id}`);
@@ -784,7 +937,16 @@
                     
                     // Try WebGL system
                     if (window.VIB34D_WorkingCore) {
-                        console.log(`🎨 Using WebGL for ${elementData.id}`);
+                        console.log(`🎨 Using standard WebGL for ${elementData.id}`);
+                        
+                        // Clear any existing context
+                        const existingContext = canvas.getContext('webgl') || canvas.getContext('webgl2');
+                        if (existingContext && existingContext.getExtension) {
+                            const loseContext = existingContext.getExtension('WEBGL_lose_context');
+                            if (loseContext) {
+                                loseContext.loseContext();
+                            }
+                        }
                         
                         const core = new window.VIB34D_WorkingCore.HypercubeCore(canvas, {
                             onError: (error) => {
@@ -829,7 +991,7 @@
                         
                         // Mark element as having WebGL visualizer
                         document.getElementById(elementData.id).classList.add('has-visualizer', 'webgl-renderer');
-                        console.log(`✅ WebGL visualizer created for ${elementData.id}`);
+                        console.log(`✅ Standard WebGL visualizer created for ${elementData.id}`);
                         
                     } else {
                         console.warn('VIB34D_WorkingCore not available');
@@ -993,6 +1155,19 @@
                         this.deselectAll();
                     }
                 });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Delete' || e.key === 'Backspace') {
+                        if (this.selectedElement) {
+                            e.preventDefault();
+                            this.deleteSelectedElement();
+                        }
+                    }
+                    if (e.key === 'Escape') {
+                        this.deselectAll();
+                    }
+                });
             }
             
             updateElementProperty(property, value) {
@@ -1010,12 +1185,32 @@
                 const actualProperty = propertyMap[property];
                 elementData.properties[actualProperty] = value;
                 
-                // Update visualizer
+                // Update visualizer with live changes
                 if (elementData.visualizer) {
-                    const updateObj = {};
-                    updateObj[actualProperty] = value;
-                    elementData.visualizer.updateParameters(updateObj);
+                    try {
+                        // Different update methods for different visualizer types
+                        if (elementData.visualizer.updateParameters) {
+                            const updateObj = {};
+                            updateObj[actualProperty] = value;
+                            elementData.visualizer.updateParameters(updateObj);
+                        } else if (elementData.visualizer.setParameter) {
+                            elementData.visualizer.setParameter(actualProperty, value);
+                        } else if (elementData.visualizer.params) {
+                            // Direct property update for fallback renderers
+                            elementData.visualizer.params[actualProperty] = value;
+                        }
+                        
+                        // Force re-render if available
+                        if (elementData.visualizer.render) {
+                            elementData.visualizer.render();
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to update visualizer property ${actualProperty}:`, error);
+                    }
                 }
+                
+                // Update any relationships
+                this.updateRelatedElements(this.selectedElement, actualProperty, value);
                 
                 this.generateCodeForElement(this.selectedElement);
             }
@@ -1064,7 +1259,134 @@
                 if (!elementData) return;
                 
                 elementData.relationships[property] = value;
+                
+                // If changing relationship type, update visual connections
+                if (property === 'type') {
+                    this.updateRelationshipVisuals();
+                }
+                
                 this.generateCodeForElement(this.selectedElement);
+            }
+            
+            updateRelatedElements(sourceId, property, value) {
+                const sourceElement = this.elements.get(sourceId);
+                if (!sourceElement || sourceElement.relationships.type === 'none') return;
+                
+                // Process all elements based on relationship type
+                this.elements.forEach((targetElement, targetId) => {
+                    if (targetId === sourceId) return; // Skip self
+                    
+                    switch (sourceElement.relationships.type) {
+                        case 'sync':
+                            // Sync: copy the same value
+                            this.applyRelationshipEffect(targetElement, property, value, sourceElement.relationships.strength);
+                            break;
+                            
+                        case 'inverse':
+                            // Inverse: apply opposite effect
+                            const maxValue = this.getPropertyMax(property);
+                            const inverseValue = maxValue - value;
+                            this.applyRelationshipEffect(targetElement, property, inverseValue, sourceElement.relationships.strength);
+                            break;
+                            
+                        case 'cascade':
+                            // Cascade: gradual effect based on distance
+                            const distance = this.calculateElementDistance(sourceElement, targetElement);
+                            const cascadeStrength = sourceElement.relationships.strength * (1 / (1 + distance * 0.01));
+                            const cascadeValue = value * cascadeStrength;
+                            this.applyRelationshipEffect(targetElement, property, cascadeValue, 1);
+                            break;
+                            
+                        case 'amplify':
+                            // Amplify: boost values of other elements
+                            const currentValue = targetElement.properties[property] || 0;
+                            const amplifiedValue = currentValue * (1 + sourceElement.relationships.strength * 0.5);
+                            this.applyRelationshipEffect(targetElement, property, amplifiedValue, 1);
+                            break;
+                    }
+                });
+            }
+            
+            applyRelationshipEffect(targetElement, property, value, strength) {
+                // Apply the effect with strength modifier
+                const effectValue = targetElement.properties[property] + (value - targetElement.properties[property]) * strength;
+                targetElement.properties[property] = effectValue;
+                
+                // Update the visualizer
+                if (targetElement.visualizer) {
+                    try {
+                        if (targetElement.visualizer.updateParameters) {
+                            const updateObj = {};
+                            updateObj[property] = effectValue;
+                            targetElement.visualizer.updateParameters(updateObj);
+                        }
+                    } catch (error) {
+                        console.warn('Failed to update related element visualizer:', error);
+                    }
+                }
+            }
+            
+            calculateElementDistance(elem1, elem2) {
+                const dx = elem1.position.x - elem2.position.x;
+                const dy = elem1.position.y - elem2.position.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+            
+            getPropertyMax(property) {
+                const maxValues = {
+                    dimension: 5.0,
+                    morphFactor: 1.5,
+                    gridDensity: 25.0,
+                    rotationSpeed: 3.0
+                };
+                return maxValues[property] || 1.0;
+            }
+            
+            updateRelationshipVisuals() {
+                // Remove existing relationship lines
+                document.querySelectorAll('.relationship-line').forEach(line => line.remove());
+                document.querySelectorAll('.relationship-dot').forEach(dot => dot.remove());
+                
+                // Draw new relationship lines
+                this.elements.forEach((sourceElement, sourceId) => {
+                    if (sourceElement.relationships.type !== 'none') {
+                        const sourceEl = document.getElementById(sourceId);
+                        if (!sourceEl) return;
+                        
+                        const sourceRect = sourceEl.getBoundingClientRect();
+                        const canvasRect = document.getElementById('canvas-content').getBoundingClientRect();
+                        
+                        this.elements.forEach((targetElement, targetId) => {
+                            if (targetId === sourceId) return;
+                            
+                            const targetEl = document.getElementById(targetId);
+                            if (!targetEl) return;
+                            
+                            const targetRect = targetEl.getBoundingClientRect();
+                            
+                            // Create relationship line
+                            const line = document.createElement('div');
+                            line.className = 'relationship-line';
+                            
+                            const x1 = sourceRect.left + sourceRect.width / 2 - canvasRect.left;
+                            const y1 = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
+                            const x2 = targetRect.left + targetRect.width / 2 - canvasRect.left;
+                            const y2 = targetRect.top + targetRect.height / 2 - canvasRect.top;
+                            
+                            const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                            
+                            line.style.width = length + 'px';
+                            line.style.left = x1 + 'px';
+                            line.style.top = y1 + 'px';
+                            line.style.transform = `rotate(${angle}deg)`;
+                            line.style.transformOrigin = '0 50%';
+                            line.style.opacity = sourceElement.relationships.strength;
+                            
+                            document.getElementById('canvas-content').appendChild(line);
+                        });
+                    }
+                });
             }
             
             generateCodeForElement(elementId) {
@@ -1124,33 +1446,39 @@ applyVIB34DConfig('${elementId}', ${elementId}Config);
                 
                 console.log(`🧹 Disposing element: ${elementId}`);
                 
-                // Dispose visualizer properly
+                // Dispose visualizer using optimized performance system
                 if (elementData.visualizer) {
                     try {
-                        // Stop animation loop
-                        if (typeof elementData.visualizer.stop === 'function') {
-                            elementData.visualizer.stop();
-                        }
-                        
-                        // Dispose WebGL resources
-                        if (typeof elementData.visualizer.dispose === 'function') {
-                            elementData.visualizer.dispose();
-                        }
-                        
-                        // Clear canvas context
-                        const canvas = document.querySelector(`#${elementId} canvas`);
-                        if (canvas) {
-                            const gl = canvas.getContext('webgl');
-                            if (gl && typeof gl.getExtension === 'function') {
-                                const loseContext = gl.getExtension('WEBGL_lose_context');
-                                if (loseContext) {
-                                    loseContext.loseContext();
-                                }
+                        if (this.optimizedRendering && this.performanceSystem) {
+                            // Use optimized disposal
+                            this.performanceSystem.disposeVisualizer(elementData.visualizer);
+                        } else {
+                            // Standard disposal
+                            // Stop animation loop
+                            if (typeof elementData.visualizer.stop === 'function') {
+                                elementData.visualizer.stop();
                             }
                             
-                            // Clear canvas
-                            canvas.width = 1;
-                            canvas.height = 1;
+                            // Dispose WebGL resources
+                            if (typeof elementData.visualizer.dispose === 'function') {
+                                elementData.visualizer.dispose();
+                            }
+                            
+                            // Clear canvas context
+                            const canvas = document.querySelector(`#${elementId} canvas`);
+                            if (canvas) {
+                                const gl = canvas.getContext('webgl');
+                                if (gl && typeof gl.getExtension === 'function') {
+                                    const loseContext = gl.getExtension('WEBGL_lose_context');
+                                    if (loseContext) {
+                                        loseContext.loseContext();
+                                    }
+                                }
+                                
+                                // Clear canvas
+                                canvas.width = 1;
+                                canvas.height = 1;
+                            }
                         }
                         
                         console.log(`✅ Visualizer disposed for: ${elementId}`);
@@ -1179,13 +1507,21 @@ applyVIB34DConfig('${elementId}', ${elementId}Config);
             disposeAllElements() {
                 console.log('🧹 Disposing all elements...');
                 
-                const elementIds = Array.from(this.elements.keys());
-                let disposedCount = 0;
-                
-                elementIds.forEach(elementId => {
-                    this.disposeElement(elementId);
-                    disposedCount++;
-                });
+                // Use optimized bulk disposal if available
+                if (this.optimizedRendering && this.performanceSystem) {
+                    this.performanceSystem.disposeAllVisualizers();
+                } else {
+                    // Standard disposal
+                    const elementIds = Array.from(this.elements.keys());
+                    let disposedCount = 0;
+                    
+                    elementIds.forEach(elementId => {
+                        this.disposeElement(elementId);
+                        disposedCount++;
+                    });
+                    
+                    console.log(`✅ Disposed ${disposedCount} elements using standard method`);
+                }
                 
                 // Clear any remaining DOM content
                 const canvasContent = document.getElementById('canvas-content');
@@ -1193,12 +1529,15 @@ applyVIB34DConfig('${elementId}', ${elementId}Config);
                     canvasContent.innerHTML = '';
                 }
                 
+                // Clear elements map
+                this.elements.clear();
+                
                 // Force garbage collection hint
                 if (window.gc && typeof window.gc === 'function') {
                     window.gc();
                 }
                 
-                console.log(`✅ Disposed ${disposedCount} elements, memory cleanup complete`);
+                console.log(`✅ All elements disposed, memory cleanup complete`);
             }
             
             deleteSelectedElement() {
@@ -1278,63 +1617,45 @@ applyVIB34DConfig('${elementId}', ${elementId}Config);
         }
         
         function exportCode() {
-            let fullCode = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIB34D Generated Page</title>
-    <script src="VIB34D_WORKING_CORE_ARCHITECTURE.js"><\/script>
-    <script src="VIB34D_MOIRE_RGB_SYSTEM.js"><\/script>
-    <style>
-        /* VIB34D Generated Styles */
-        body { margin: 0; padding: 0; background: #000; color: #fff; }
-        .vib34d-element { position: absolute; }
-        .element-visualizer { width: 100%; height: 100%; }
-    </style>
-</head>
-<body>
-`;
+            let fullCode = '<!DOCTYPE html>\n<html lang="en">\n<head>\n';
+            fullCode += '    <meta charset="UTF-8">\n';
+            fullCode += '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
+            fullCode += '    <title>VIB34D Generated Page</title>\n';
+            fullCode += '    <style>\n';
+            fullCode += '        body { margin: 0; padding: 0; background: #000; color: #fff; }\n';
+            fullCode += '        .vib34d-element { position: absolute; }\n';
+            fullCode += '        .element-visualizer { width: 100%; height: 100%; }\n';
+            fullCode += '    </style>\n';
+            fullCode += '</head>\n<body>\n';
             
             editorDashboard.elements.forEach((elementData) => {
-                fullCode += `
-    <div class="vib34d-element" id="${elementData.id}" style="left: ${elementData.position.x}px; top: ${elementData.position.y}px;">
-        ${elementData.name}
-        <canvas class="element-visualizer" width="200" height="120"></canvas>
-    </div>
-`;
+                fullCode += '    <div class="vib34d-element" id="' + elementData.id + '"';
+                fullCode += ' style="left: ' + elementData.position.x + 'px; top: ' + elementData.position.y + 'px;">\n';
+                fullCode += '        ' + elementData.name + '\n';
+                fullCode += '        <canvas class="element-visualizer" width="200" height="120"></canvas>\n';
+                fullCode += '    </div>\n';
             });
             
-            fullCode += `
-    <script>
-        // Initialize VIB34D elements
-        ${Array.from(editorDashboard.elements.values()).map(elementData => {
-            return `
-        // ${elementData.name}
-        const ${elementData.id}Config = ${JSON.stringify({
-            type: elementData.type,
-            geometry: elementData.geometry,
-            properties: elementData.properties,
-            relationships: elementData.relationships
-        }, null, 8)};
-        
-        const ${elementData.id}Canvas = document.querySelector('#${elementData.id} canvas');
-        const ${elementData.id}Core = new VIB34D_WorkingCore.HypercubeCore(${elementData.id}Canvas);
-        ${elementData.id}Core.updateParameters({
-            geometryType: '${elementData.geometry}',
-            dimension: ${elementData.properties.dimension},
-            morphFactor: ${elementData.properties.morphFactor},
-            gridDensity: ${elementData.properties.gridDensity},
-            rotationSpeed: ${elementData.properties.rotationSpeed}
-        });
-        ${elementData.id}Core.start();
-            `.trim();
-        }).join('\n\n')}
-    </script>
-</body>
-</html>
-            `;
+            fullCode += '    <script src="VIB34D_WORKING_CORE_ARCHITECTURE.js"></script>\n';
+            fullCode += '    <script>\n';
+            fullCode += '        // Initialize VIB34D elements\n';
+            
+            Array.from(editorDashboard.elements.values()).forEach(elementData => {
+                fullCode += '        // ' + elementData.name + '\n';
+                fullCode += '        const ' + elementData.id + 'Canvas = document.querySelector("#' + elementData.id + ' canvas");\n';
+                fullCode += '        const ' + elementData.id + 'Core = new VIB34D_WorkingCore.HypercubeCore(' + elementData.id + 'Canvas);\n';
+                fullCode += '        ' + elementData.id + 'Core.updateParameters({\n';
+                fullCode += '            geometryType: "' + elementData.geometry + '",\n';
+                fullCode += '            dimension: ' + elementData.properties.dimension + ',\n';
+                fullCode += '            morphFactor: ' + elementData.properties.morphFactor + ',\n';
+                fullCode += '            gridDensity: ' + elementData.properties.gridDensity + ',\n';
+                fullCode += '            rotationSpeed: ' + elementData.properties.rotationSpeed + '\n';
+                fullCode += '        });\n';
+                fullCode += '        ' + elementData.id + 'Core.start();\n\n';
+            });
+            
+            fullCode += '    </script>\n';
+            fullCode += '</body>\n</html>';
             
             const blob = new Blob([fullCode], { type: 'text/html' });
             const url = URL.createObjectURL(blob);

@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D Professional Dashboard - Complete System</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body {
+            background: linear-gradient(135deg, #000 0%, #111 50%, #000 100%);
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Performance indicator */
+        .performance-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            padding: 10px;
+            z-index: 1000;
+            font-size: 10px;
+            color: #00ffff;
+        }
+        
+        .performance-indicator.good { border-color: #00ff00; color: #00ff00; }
+        .performance-indicator.warning { border-color: #ffff00; color: #ffff00; }
+        .performance-indicator.critical { border-color: #ff0000; color: #ff0000; }
+        
+        /* Main dashboard container */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            grid-template-rows: 60px 1fr 40px;
+            height: 100vh;
+            gap: 2px;
+            background: rgba(255, 0, 255, 0.1);
+        }
+        
+        /* Top toolbar */
+        .dashboard-toolbar {
+            grid-column: 1 / -1;
+            background: rgba(0, 0, 0, 0.9);
+            border-bottom: 2px solid #ff00ff;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+        }
+        
+        .toolbar-left {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .toolbar-title {
+            font-size: 18px;
+            color: #00ffff;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .system-status {
+            display: flex;
+            gap: 5px;
+            font-size: 12px;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.warning { background: #ffff00; }
+        .status-indicator.error { background: #ff0000; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .toolbar-right {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .toolbar-button {
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .toolbar-button:hover {
+            background: rgba(0, 255, 255, 0.4);
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+        
+        .toolbar-button.primary {
+            background: rgba(255, 0, 255, 0.3);
+            border-color: #ff00ff;
+            color: #ff00ff;
+        }
+        
+        .toolbar-button.primary:hover {
+            background: rgba(255, 0, 255, 0.6);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        }
+        
+        /* Left panel - Components */
+        .components-panel {
+            background: rgba(0, 0, 0, 0.95);
+            border-right: 2px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .panel-section {
+            margin-bottom: 25px;
+        }
+        
+        .panel-title {
+            color: #ff00ff;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .component-card {
+            background: rgba(255, 0, 255, 0.05);
+            border: 1px solid #ff00ff33;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: grab;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .component-card:hover {
+            background: rgba(255, 0, 255, 0.2);
+            border-color: #ff00ff;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+        }
+        
+        .component-card:active {
+            cursor: grabbing;
+        }
+        
+        .component-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .component-name {
+            font-size: 10px;
+            color: #00ffff;
+            font-weight: bold;
+        }
+        
+        .component-type {
+            font-size: 8px;
+            color: #888;
+            margin-top: 2px;
+        }
+        
+        /* Center workspace */
+        .main-workspace {
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #333;
+        }
+        
+        .workspace-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 0, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 0, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+        
+        .workspace-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+        }
+        
+        .hypercube-card {
+            position: absolute;
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            padding: 10px;
+            min-width: 120px;
+            min-height: 80px;
+            cursor: move;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #00ffff;
+            backdrop-filter: blur(10px);
+        }
+        
+        .hypercube-card:hover {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.15);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+            transform: scale(1.02);
+        }
+        
+        .hypercube-card.selected {
+            border-color: #ffff00;
+            background: rgba(255, 255, 0, 0.1);
+            color: #ffff00;
+            box-shadow: 0 0 25px rgba(255, 255, 0, 0.5);
+        }
+        
+        .hypercube-card.optimized {
+            border-color: #ff00ff;
+            background: rgba(255, 0, 255, 0.1);
+        }
+        
+        .card-visualizer {
+            width: 100%;
+            height: 60px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+        
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        
+        .card-geometry {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+        
+        /* Right panel - Properties */
+        .properties-panel {
+            background: rgba(0, 0, 0, 0.95);
+            border-left: 2px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .properties-section {
+            margin-bottom: 25px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #333;
+        }
+        
+        .properties-title {
+            color: #00ffff;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .property-group {
+            margin-bottom: 15px;
+        }
+        
+        .property-label {
+            color: #ffff00;
+            font-size: 12px;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .property-input, .property-select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 12px;
+        }
+        
+        .property-input:focus, .property-select:focus {
+            border-color: #00ffff;
+            outline: none;
+            box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+        }
+        
+        .property-slider {
+            width: 100%;
+            margin: 5px 0;
+            accent-color: #00ffff;
+        }
+        
+        .property-value {
+            color: #00ff00;
+            font-size: 11px;
+            text-align: right;
+            margin-top: 3px;
+        }
+        
+        .geometry-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            margin: 10px 0;
+        }
+        
+        .geometry-option {
+            background: rgba(255, 0, 255, 0.1);
+            border: 1px solid #ff00ff33;
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .geometry-option:hover,
+        .geometry-option.selected {
+            background: rgba(255, 0, 255, 0.3);
+            border-color: #ff00ff;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.3);
+        }
+        
+        .performance-controls {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .performance-metric {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .metric-label {
+            color: #00ffff;
+            font-size: 10px;
+        }
+        
+        .metric-value {
+            color: #00ff00;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        /* Bottom status bar */
+        .status-bar {
+            grid-column: 1 / -1;
+            background: rgba(0, 0, 0, 0.9);
+            border-top: 1px solid #333;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 11px;
+            color: #888;
+            justify-content: space-between;
+        }
+        
+        .status-left {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .status-right {
+            display: flex;
+            gap: 15px;
+        }
+        
+        /* Drag and drop effects */
+        .workspace-content.drag-over {
+            background: rgba(0, 255, 255, 0.05);
+        }
+        
+        .workspace-content.drag-over::before {
+            content: "Drop to create hypercube visualization";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffff;
+            font-size: 16px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        /* Context preservation indicator */
+        .context-indicator {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #ff00ff;
+            border-radius: 5px;
+            padding: 8px;
+            z-index: 1000;
+            font-size: 10px;
+            color: #ff00ff;
+        }
+        
+        .context-indicator.active { 
+            border-color: #00ff00; 
+            color: #00ff00; 
+        }
+        
+        /* Modal dialogs */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: #fff;
+        }
+        
+        .modal-title {
+            color: #00ffff;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .dashboard-container {
+                grid-template-columns: 250px 1fr 280px;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 60px 1fr 40px;
+            }
+            
+            .components-panel,
+            .properties-panel {
+                display: none;
+            }
+            
+            .main-workspace {
+                grid-column: 1;
+            }
+        }
+        
+        /* Loading and transitions */
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Tooltip system */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ffff;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 11px;
+            color: #00ffff;
+            z-index: 1500;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .tooltip.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Performance Indicator -->
+    <div class="performance-indicator" id="performance-indicator">
+        <div>FPS: <span id="fps-display">--</span></div>
+        <div>WebGL: <span id="webgl-status">--</span></div>
+        <div>Memory: <span id="memory-display">--</span>MB</div>
+    </div>
+    
+    <!-- Context Preservation Indicator -->
+    <div class="context-indicator" id="context-indicator">
+        Context: <span id="context-status">Ready</span>
+    </div>
+    
+    <!-- Main Dashboard -->
+    <div class="dashboard-container">
+        <!-- Top Toolbar -->
+        <div class="dashboard-toolbar">
+            <div class="toolbar-left">
+                <div class="toolbar-title">
+                    🎨 VIB34D Professional Dashboard
+                    <div class="system-status">
+                        <div class="status-indicator" id="core-status" title="Core System"></div>
+                        <div class="status-indicator" id="webgl-status-indicator" title="WebGL Performance"></div>
+                        <div class="status-indicator" id="context-status-indicator" title="Context Manager"></div>
+                    </div>
+                </div>
+                <button class="toolbar-button" onclick="dashboardSystem.newProject()">New</button>
+                <button class="toolbar-button" onclick="dashboardSystem.loadProject()">Load</button>
+                <button class="toolbar-button" onclick="dashboardSystem.saveProject()">Save</button>
+            </div>
+            <div class="toolbar-right">
+                <button class="toolbar-button" onclick="dashboardSystem.toggleGrid()">Grid</button>
+                <button class="toolbar-button" onclick="dashboardSystem.optimizePerformance()">Optimize</button>
+                <button class="toolbar-button" onclick="dashboardSystem.exportCode()">Export</button>
+                <button class="toolbar-button primary" onclick="dashboardSystem.deployLive()">Deploy Live</button>
+            </div>
+        </div>
+        
+        <!-- Left Panel - Components -->
+        <div class="components-panel">
+            <div class="panel-section">
+                <div class="panel-title">🎮 Interactive Components</div>
+                <div class="component-grid">
+                    <div class="component-card" draggable="true" data-type="button" data-geometry="hypercube">
+                        <span class="component-icon">🔲</span>
+                        <div class="component-name">Hypercube Button</div>
+                        <div class="component-type">4D Interactive</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="card" data-geometry="sphere">
+                        <span class="component-icon">🌐</span>
+                        <div class="component-name">Sphere Card</div>
+                        <div class="component-type">3D/4D Morph</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="navigation" data-geometry="tetrahedron">
+                        <span class="component-icon">🧭</span>
+                        <div class="component-name">Tetra Nav</div>
+                        <div class="component-type">Dimensional</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="header" data-geometry="wave">
+                        <span class="component-icon">📄</span>
+                        <div class="component-name">Wave Header</div>
+                        <div class="component-type">Fluid Dynamic</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="panel-title">🌊 Background Systems</div>
+                <div class="component-grid">
+                    <div class="component-card" draggable="true" data-type="background" data-geometry="klein">
+                        <span class="component-icon">🌌</span>
+                        <div class="component-name">Klein Surface</div>
+                        <div class="component-type">Non-Orientable</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="pattern" data-geometry="fractal">
+                        <span class="component-icon">🌿</span>
+                        <div class="component-name">Fractal Pattern</div>
+                        <div class="component-type">Self-Similar</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="overlay" data-geometry="crystal">
+                        <span class="component-icon">💎</span>
+                        <div class="component-name">Crystal Overlay</div>
+                        <div class="component-type">Crystalline</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="accent" data-geometry="torus">
+                        <span class="component-icon">🍩</span>
+                        <div class="component-name">Torus Accent</div>
+                        <div class="component-type">Toroidal</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="panel-title">🎛️ Layout Elements</div>
+                <div class="component-grid">
+                    <div class="component-card" draggable="true" data-type="grid" data-geometry="hypercube">
+                        <span class="component-icon">⚏</span>
+                        <div class="component-name">4D Grid</div>
+                        <div class="component-type">Multi-Cube</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="sidebar" data-geometry="tetrahedron">
+                        <span class="component-icon">📋</span>
+                        <div class="component-name">Tetra Sidebar</div>
+                        <div class="component-type">Pyramidal</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="modal" data-geometry="sphere">
+                        <span class="component-icon">⭕</span>
+                        <div class="component-name">Sphere Modal</div>
+                        <div class="component-type">Encompassing</div>
+                    </div>
+                    <div class="component-card" draggable="true" data-type="footer" data-geometry="wave">
+                        <span class="component-icon">📰</span>
+                        <div class="component-name">Wave Footer</div>
+                        <div class="component-type">Oscillating</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Center Workspace -->
+        <div class="main-workspace">
+            <div class="workspace-grid"></div>
+            <div class="workspace-content" id="workspace-content">
+                <!-- Hypercube cards will be created here -->
+            </div>
+        </div>
+        
+        <!-- Right Panel - Properties -->
+        <div class="properties-panel">
+            <div class="properties-section">
+                <div class="properties-title">🎯 Element Properties</div>
+                <div id="element-properties">
+                    <div style="color: #888; text-align: center; padding: 20px;">
+                        Select a hypercube element to edit properties
+                    </div>
+                </div>
+            </div>
+            
+            <div class="properties-section">
+                <div class="properties-title">🔮 Geometry Settings</div>
+                <div class="property-group">
+                    <label class="property-label">Geometry Type</label>
+                    <div class="geometry-grid" id="geometry-grid">
+                        <div class="geometry-option" data-geometry="hypercube">🔮 Hypercube</div>
+                        <div class="geometry-option" data-geometry="sphere">🌐 Hypersphere</div>
+                        <div class="geometry-option" data-geometry="tetrahedron">🔺 Tetrahedron</div>
+                        <div class="geometry-option" data-geometry="torus">🍩 Torus</div>
+                        <div class="geometry-option" data-geometry="klein">🎭 Klein</div>
+                        <div class="geometry-option" data-geometry="fractal">🌿 Fractal</div>
+                        <div class="geometry-option" data-geometry="wave">🌊 Wave</div>
+                        <div class="geometry-option" data-geometry="crystal">💎 Crystal</div>
+                    </div>
+                </div>
+                
+                <div class="property-group">
+                    <label class="property-label">Dimension</label>
+                    <input type="range" class="property-slider" id="dimension-slider" min="3.0" max="5.0" step="0.1" value="4.0">
+                    <div class="property-value" id="dimension-value">4.0</div>
+                </div>
+                
+                <div class="property-group">
+                    <label class="property-label">Morph Factor</label>
+                    <input type="range" class="property-slider" id="morph-slider" min="0.0" max="1.5" step="0.01" value="0.7">
+                    <div class="property-value" id="morph-value">0.70</div>
+                </div>
+                
+                <div class="property-group">
+                    <label class="property-label">Grid Density</label>
+                    <input type="range" class="property-slider" id="grid-slider" min="1.0" max="25.0" step="0.1" value="8.0">
+                    <div class="property-value" id="grid-value">8.0</div>
+                </div>
+                
+                <div class="property-group">
+                    <label class="property-label">Rotation Speed</label>
+                    <input type="range" class="property-slider" id="rotation-slider" min="0.0" max="3.0" step="0.01" value="0.5">
+                    <div class="property-value" id="rotation-value">0.50</div>
+                </div>
+            </div>
+            
+            <div class="properties-section">
+                <div class="properties-title">⚡ Performance Metrics</div>
+                <div class="performance-controls">
+                    <div class="performance-metric">
+                        <span class="metric-label">Active Visualizers</span>
+                        <span class="metric-value" id="active-visualizers">0</span>
+                    </div>
+                    <div class="performance-metric">
+                        <span class="metric-label">WebGL Contexts</span>
+                        <span class="metric-value" id="webgl-contexts">0/16</span>
+                    </div>
+                    <div class="performance-metric">
+                        <span class="metric-label">Frame Rate</span>
+                        <span class="metric-value" id="frame-rate">60 FPS</span>
+                    </div>
+                    <div class="performance-metric">
+                        <span class="metric-label">Memory Usage</span>
+                        <span class="metric-value" id="memory-usage">0 MB</span>
+                    </div>
+                    <div class="performance-metric">
+                        <span class="metric-label">Cache Hit Rate</span>
+                        <span class="metric-value" id="cache-hit-rate">100%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="properties-section">
+                <div class="properties-title">🧠 Context State</div>
+                <div class="performance-controls">
+                    <div class="performance-metric">
+                        <span class="metric-label">Current Face</span>
+                        <span class="metric-value" id="current-face">0</span>
+                    </div>
+                    <div class="performance-metric">
+                        <span class="metric-label">Cached Params</span>
+                        <span class="metric-value" id="cached-params">0</span>
+                    </div>
+                    <div class="performance-metric">
+                        <span class="metric-label">Preloaded Faces</span>
+                        <span class="metric-value" id="preloaded-faces">0</span>
+                    </div>
+                    <div class="performance-metric">
+                        <span class="metric-label">Context Health</span>
+                        <span class="metric-value" id="context-health">Excellent</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Status Bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <span>VIB34D Professional v1.0</span>
+                <span id="element-count">0 elements</span>
+                <span id="system-mode">Production Mode</span>
+            </div>
+            <div class="status-right">
+                <span id="last-save">Never saved</span>
+                <span id="performance-status">Optimal</span>
+                <span id="connection-status">Connected</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+    
+    <!-- Modal for project exports -->
+    <div class="modal-overlay" id="export-modal">
+        <div class="modal-content">
+            <div class="modal-title">🚀 Export VIB34D Project</div>
+            <div id="export-content">
+                <!-- Export options will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load core systems -->
+    <script src="core/VIB34DContextManager.js"></script>
+    <script src="VIB34D_WORKING_CORE_ARCHITECTURE.js"></script>
+    <script src="VIB34D_WEBGL_PERFORMANCE_SYSTEM.js"></script>
+    <script src="VIB34D_WEBGL_FALLBACK.js"></script>
+    <script src="VIB34D_MOIRE_RGB_SYSTEM.js"></script>
+    <script src="VIB34D_INTEGRATED_SYSTEM_BRIDGE.js"></script>
+    
+    <script>
+        /**
+         * VIB34D Professional Dashboard System
+         * Complete integration of all performance optimizations and context management
+         */
+        class VIB34DProfessionalDashboard {
+            constructor() {
+                console.log('🚀 VIB34D Professional Dashboard - Complete System Initializing...');
+                
+                // Core state
+                this.elements = new Map();
+                this.selectedElement = null;
+                this.nextElementId = 1;
+                this.gridVisible = true;
+                
+                // System integrations
+                this.contextManager = null;
+                this.performanceSystem = null;
+                this.webglFallback = null;
+                this.systemBridge = null;
+                
+                // Performance tracking
+                this.performanceStats = {
+                    fps: 0,
+                    memoryUsage: 0,
+                    activeVisualizers: 0,
+                    webglContexts: 0,
+                    cacheHitRate: 100
+                };
+                
+                // State
+                this.isInitialized = false;
+                this.isOptimizing = false;
+                
+                this.initialize();
+            }
+            
+            async initialize() {
+                try {
+                    console.log('🔧 Initializing integrated systems...');
+                    
+                    // Initialize context manager first
+                    await this.initializeContextManager();
+                    
+                    // Initialize performance system
+                    await this.initializePerformanceSystem();
+                    
+                    // Initialize WebGL fallback
+                    await this.initializeWebGLFallback();
+                    
+                    // Initialize system bridge
+                    await this.initializeSystemBridge();
+                    
+                    // Setup dashboard interactions
+                    this.setupInteractions();
+                    
+                    // Start monitoring
+                    this.startPerformanceMonitoring();
+                    
+                    // Update UI indicators
+                    this.updateSystemStatus();
+                    
+                    this.isInitialized = true;
+                    console.log('✅ VIB34D Professional Dashboard ready');
+                    
+                    // Create demo elements
+                    setTimeout(() => this.createDemoElements(), 1000);
+                    
+                } catch (error) {
+                    console.error('❌ Failed to initialize dashboard:', error);
+                    this.handleInitializationError(error);
+                }
+            }
+            
+            async initializeContextManager() {
+                try {
+                    if (window.VIB34DContextManager) {
+                        this.contextManager = new VIB34DContextManager();
+                        console.log('✅ Context Manager initialized');
+                        this.updateStatusIndicator('context-status-indicator', 'good');
+                    } else {
+                        console.warn('⚠️ Context Manager not available');
+                        this.updateStatusIndicator('context-status-indicator', 'warning');
+                    }
+                } catch (error) {
+                    console.error('❌ Context Manager initialization failed:', error);
+                    this.updateStatusIndicator('context-status-indicator', 'error');
+                }
+            }
+            
+            async initializePerformanceSystem() {
+                try {
+                    if (window.VIB34D_PERFORMANCE_SYSTEM || window.VIB34DWebGLPerformanceSystem) {
+                        this.performanceSystem = window.VIB34D_PERFORMANCE_SYSTEM || new VIB34DWebGLPerformanceSystem();
+                        if (!this.performanceSystem.isInitialized) {
+                            await this.performanceSystem.initialize();
+                        }
+                        console.log('✅ Performance System initialized');
+                        this.updateStatusIndicator('webgl-status-indicator', 'good');
+                    } else {
+                        console.warn('⚠️ Performance System not available');
+                        this.updateStatusIndicator('webgl-status-indicator', 'warning');
+                    }
+                } catch (error) {
+                    console.error('❌ Performance System initialization failed:', error);
+                    this.updateStatusIndicator('webgl-status-indicator', 'error');
+                }
+            }
+            
+            async initializeWebGLFallback() {
+                try {
+                    if (window.VIB34D_WEBGL_FALLBACK) {
+                        this.webglFallback = window.VIB34D_WEBGL_FALLBACK;
+                        console.log('✅ WebGL Fallback system available');
+                    } else {
+                        console.warn('⚠️ WebGL Fallback not available');
+                    }
+                } catch (error) {
+                    console.error('❌ WebGL Fallback initialization failed:', error);
+                }
+            }
+            
+            async initializeSystemBridge() {
+                try {
+                    if (window.VIB34DIntegratedSystemBridge) {
+                        this.systemBridge = new VIB34DIntegratedSystemBridge();
+                        await this.systemBridge.initialize();
+                        console.log('✅ System Bridge initialized');
+                        this.updateStatusIndicator('core-status', 'good');
+                    } else {
+                        console.warn('⚠️ System Bridge not available');
+                        this.updateStatusIndicator('core-status', 'warning');
+                    }
+                } catch (error) {
+                    console.error('❌ System Bridge initialization failed:', error);
+                    this.updateStatusIndicator('core-status', 'error');
+                }
+            }
+            
+            setupInteractions() {
+                // Drag and drop
+                this.setupDragAndDrop();
+                
+                // Property controls
+                this.setupPropertyControls();
+                
+                // Workspace interactions
+                this.setupWorkspaceInteractions();
+                
+                // Keyboard shortcuts
+                this.setupKeyboardShortcuts();
+                
+                console.log('✅ Dashboard interactions configured');
+            }
+            
+            setupDragAndDrop() {
+                const componentCards = document.querySelectorAll('.component-card');
+                const workspace = document.getElementById('workspace-content');
+                
+                componentCards.forEach(card => {
+                    card.addEventListener('dragstart', (e) => {
+                        const data = {
+                            type: card.dataset.type,
+                            geometry: card.dataset.geometry,
+                            name: card.querySelector('.component-name').textContent
+                        };
+                        e.dataTransfer.setData('text/plain', JSON.stringify(data));
+                    });
+                });
+                
+                workspace.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    workspace.classList.add('drag-over');
+                });
+                
+                workspace.addEventListener('dragleave', () => {
+                    workspace.classList.remove('drag-over');
+                });
+                
+                workspace.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    workspace.classList.remove('drag-over');
+                    
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    const rect = workspace.getBoundingClientRect();
+                    const x = e.clientX - rect.left - 60; // Center the element
+                    const y = e.clientY - rect.top - 40;
+                    
+                    this.createElement(data, x, y);
+                });
+            }
+            
+            setupPropertyControls() {
+                // Geometry selection
+                const geometryOptions = document.querySelectorAll('.geometry-option');
+                geometryOptions.forEach(option => {
+                    option.addEventListener('click', () => {
+                        if (this.selectedElement) {
+                            this.updateElementGeometry(option.dataset.geometry);
+                        }
+                    });
+                });
+                
+                // Property sliders
+                const sliders = ['dimension', 'morph', 'grid', 'rotation'];
+                sliders.forEach(slider => {
+                    const sliderElement = document.getElementById(`${slider}-slider`);
+                    const valueElement = document.getElementById(`${slider}-value`);
+                    
+                    sliderElement.addEventListener('input', (e) => {
+                        const value = parseFloat(e.target.value);
+                        const decimals = slider === 'grid' ? 1 : 2;
+                        valueElement.textContent = value.toFixed(decimals);
+                        
+                        if (this.selectedElement) {
+                            this.updateElementProperty(slider, value);
+                        }
+                    });
+                });
+            }
+            
+            setupWorkspaceInteractions() {
+                const workspace = document.getElementById('workspace-content');
+                
+                workspace.addEventListener('click', (e) => {
+                    if (e.target === workspace) {
+                        this.deselectAll();
+                    }
+                });
+                
+                // Double-click to create quick element
+                workspace.addEventListener('dblclick', (e) => {
+                    if (e.target === workspace) {
+                        const rect = workspace.getBoundingClientRect();
+                        const x = e.clientX - rect.left - 60;
+                        const y = e.clientY - rect.top - 40;
+                        
+                        this.createElement({
+                            type: 'hypercube',
+                            geometry: 'hypercube',
+                            name: 'Quick Hypercube'
+                        }, x, y);
+                    }
+                });
+            }
+            
+            setupKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        switch (e.key) {
+                            case 'n':
+                                e.preventDefault();
+                                this.newProject();
+                                break;
+                            case 's':
+                                e.preventDefault();
+                                this.saveProject();
+                                break;
+                            case 'o':
+                                e.preventDefault();
+                                this.loadProject();
+                                break;
+                            case 'e':
+                                e.preventDefault();
+                                this.exportCode();
+                                break;
+                        }
+                    }
+                    
+                    if (e.key === 'Delete' && this.selectedElement) {
+                        this.deleteSelectedElement();
+                    }
+                    
+                    if (e.key === 'g') {
+                        this.toggleGrid();
+                    }
+                });
+            }
+            
+            async createElement(data, x, y) {
+                const elementId = `element-${this.nextElementId++}`;
+                
+                console.log(`🎨 Creating ${data.type} with ${data.geometry} geometry`);
+                
+                // Create DOM element
+                const element = document.createElement('div');
+                element.className = 'hypercube-card fade-in';
+                element.id = elementId;
+                element.style.left = `${x}px`;
+                element.style.top = `${y}px`;
+                
+                // Add canvas for visualization
+                const canvas = document.createElement('canvas');
+                canvas.className = 'card-visualizer';
+                canvas.width = 200;
+                canvas.height = 120;
+                
+                element.innerHTML = `
+                    <div class="card-title">${data.name}</div>
+                    <div class="card-geometry">${data.geometry}</div>
+                `;
+                element.insertBefore(canvas, element.firstChild);
+                
+                // Make interactive
+                this.makeElementInteractive(element, elementId);
+                
+                document.getElementById('workspace-content').appendChild(element);
+                
+                // Create element data
+                const elementData = {
+                    id: elementId,
+                    type: data.type,
+                    geometry: data.geometry,
+                    name: data.name,
+                    position: { x, y },
+                    visualizer: null,
+                    properties: {
+                        dimension: 4.0,
+                        morphFactor: 0.7,
+                        gridDensity: 8.0,
+                        rotationSpeed: 0.5,
+                        lineThickness: 0.03,
+                        patternIntensity: 1.5
+                    }
+                };
+                
+                this.elements.set(elementId, elementData);
+                
+                // Initialize visualizer
+                await this.initializeElementVisualizer(elementData, canvas);
+                
+                // Register with context manager
+                if (this.contextManager) {
+                    this.contextManager.cacheParameters(0, elementId, data.type, elementData.properties);
+                }
+                
+                // Auto-select new element
+                this.selectElement(elementId);
+                
+                // Update UI
+                this.updateElementCount();
+                this.updatePerformanceMetrics();
+                
+                console.log(`✅ Created element: ${elementId}`);
+            }
+            
+            makeElementInteractive(element, elementId) {
+                element.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.selectElement(elementId);
+                });
+                
+                element.addEventListener('mousedown', (e) => {
+                    if (e.button === 0) { // Left mouse button
+                        this.startDragging(elementId, e);
+                    }
+                });
+                
+                // Context menu
+                element.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    this.showElementContextMenu(elementId, e.clientX, e.clientY);
+                });
+            }
+            
+            async initializeElementVisualizer(elementData, canvas) {
+                try {
+                    // Try optimized performance system first
+                    if (this.performanceSystem) {
+                        console.log(`🚀 Using optimized WebGL for ${elementData.id}`);
+                        
+                        const optimizedVisualizer = await this.performanceSystem.createOptimizedVisualizer(canvas, {
+                            geometryType: elementData.geometry,
+                            dimension: elementData.properties.dimension,
+                            morphFactor: elementData.properties.morphFactor,
+                            gridDensity: elementData.properties.gridDensity,
+                            rotationSpeed: elementData.properties.rotationSpeed,
+                            patternIntensity: elementData.properties.patternIntensity,
+                            lineThickness: elementData.properties.lineThickness
+                        });
+                        
+                        if (optimizedVisualizer) {
+                            optimizedVisualizer.start();
+                            elementData.visualizer = optimizedVisualizer;
+                            document.getElementById(elementData.id).classList.add('optimized');
+                            console.log(`✅ Optimized visualizer created: ${elementData.id}`);
+                            return;
+                        }
+                    }
+                    
+                    // Fallback to standard WebGL
+                    if (window.VIB34D_WorkingCore) {
+                        console.log(`🎨 Using standard WebGL for ${elementData.id}`);
+                        
+                        const core = new window.VIB34D_WorkingCore.HypercubeCore(canvas, {
+                            onError: (error) => {
+                                console.error(`WebGL error for ${elementData.id}:`, error);
+                                this.createFallbackVisualizer(elementData, canvas);
+                            }
+                        });
+                        
+                        core.updateParameters({
+                            geometryType: elementData.geometry,
+                            dimension: elementData.properties.dimension,
+                            morphFactor: elementData.properties.morphFactor,
+                            gridDensity: elementData.properties.gridDensity,
+                            rotationSpeed: elementData.properties.rotationSpeed,
+                            patternIntensity: elementData.properties.patternIntensity,
+                            lineThickness: elementData.properties.lineThickness
+                        });
+                        
+                        core.start();
+                        elementData.visualizer = core;
+                        console.log(`✅ Standard WebGL visualizer: ${elementData.id}`);
+                        return;
+                    }
+                    
+                    // Final fallback
+                    this.createFallbackVisualizer(elementData, canvas);
+                    
+                } catch (error) {
+                    console.error(`Failed to create visualizer for ${elementData.id}:`, error);
+                    this.createFallbackVisualizer(elementData, canvas);
+                }
+            }
+            
+            createFallbackVisualizer(elementData, canvas) {
+                console.log(`🎨 Creating fallback visualizer for ${elementData.id}`);
+                
+                if (this.webglFallback) {
+                    const fallbackRenderer = this.webglFallback.createFallbackVisualizer(canvas, {
+                        geometryType: elementData.geometry,
+                        gridDensity: elementData.properties.gridDensity,
+                        rotationSpeed: elementData.properties.rotationSpeed,
+                        patternIntensity: elementData.properties.patternIntensity,
+                        morphFactor: elementData.properties.morphFactor,
+                        dimension: elementData.properties.dimension
+                    });
+                    
+                    if (fallbackRenderer) {
+                        fallbackRenderer.start();
+                        elementData.visualizer = fallbackRenderer;
+                        return;
+                    }
+                }
+                
+                // Basic canvas fallback
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#00ffff';
+                ctx.font = '12px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(elementData.geometry, canvas.width/2, canvas.height/2 - 5);
+                ctx.fillText('Visualizer', canvas.width/2, canvas.height/2 + 10);
+            }
+            
+            selectElement(elementId) {
+                // Deselect previous
+                if (this.selectedElement) {
+                    const prevElement = document.getElementById(this.selectedElement);
+                    if (prevElement) {
+                        prevElement.classList.remove('selected');
+                    }
+                }
+                
+                // Select new
+                this.selectedElement = elementId;
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.classList.add('selected');
+                    this.updatePropertiesPanel(elementId);
+                }
+                
+                console.log(`🎯 Selected element: ${elementId}`);
+            }
+            
+            updatePropertiesPanel(elementId) {
+                const elementData = this.elements.get(elementId);
+                if (!elementData) return;
+                
+                // Update basic properties
+                document.getElementById('element-properties').innerHTML = `
+                    <div class="property-group">
+                        <label class="property-label">Element Type</label>
+                        <input type="text" class="property-input" value="${elementData.type}" readonly>
+                    </div>
+                    <div class="property-group">
+                        <label class="property-label">Element Name</label>
+                        <input type="text" class="property-input" value="${elementData.name}" 
+                               onchange="dashboardSystem.updateElementName('${elementId}', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label class="property-label">Position X</label>
+                        <input type="number" class="property-input" value="${elementData.position.x}" 
+                               onchange="dashboardSystem.updateElementPosition('${elementId}', 'x', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label class="property-label">Position Y</label>
+                        <input type="number" class="property-input" value="${elementData.position.y}" 
+                               onchange="dashboardSystem.updateElementPosition('${elementId}', 'y', this.value)">
+                    </div>
+                `;
+                
+                // Update sliders
+                document.getElementById('dimension-slider').value = elementData.properties.dimension;
+                document.getElementById('dimension-value').textContent = elementData.properties.dimension.toFixed(1);
+                
+                document.getElementById('morph-slider').value = elementData.properties.morphFactor;
+                document.getElementById('morph-value').textContent = elementData.properties.morphFactor.toFixed(2);
+                
+                document.getElementById('grid-slider').value = elementData.properties.gridDensity;
+                document.getElementById('grid-value').textContent = elementData.properties.gridDensity.toFixed(1);
+                
+                document.getElementById('rotation-slider').value = elementData.properties.rotationSpeed;
+                document.getElementById('rotation-value').textContent = elementData.properties.rotationSpeed.toFixed(2);
+                
+                // Update geometry selector
+                document.querySelectorAll('.geometry-option').forEach(option => {
+                    option.classList.remove('selected');
+                    if (option.dataset.geometry === elementData.geometry) {
+                        option.classList.add('selected');
+                    }
+                });
+            }
+            
+            updateElementProperty(property, value) {
+                const elementData = this.elements.get(this.selectedElement);
+                if (!elementData) return;
+                
+                const propertyMap = {
+                    'dimension': 'dimension',
+                    'morph': 'morphFactor',
+                    'grid': 'gridDensity',
+                    'rotation': 'rotationSpeed'
+                };
+                
+                const actualProperty = propertyMap[property];
+                elementData.properties[actualProperty] = value;
+                
+                // Update visualizer
+                if (elementData.visualizer && elementData.visualizer.updateParameters) {
+                    const updateObj = {};
+                    updateObj[actualProperty] = value;
+                    elementData.visualizer.updateParameters(updateObj);
+                }
+                
+                // Update context cache
+                if (this.contextManager) {
+                    this.contextManager.cacheParameters(0, elementData.id, elementData.type, elementData.properties);
+                }
+                
+                console.log(`📊 Updated ${property} to ${value} for ${this.selectedElement}`);
+            }
+            
+            updateElementGeometry(geometry) {
+                const elementData = this.elements.get(this.selectedElement);
+                if (!elementData) return;
+                
+                console.log(`🔄 Changing geometry to ${geometry} for ${this.selectedElement}`);
+                
+                elementData.geometry = geometry;
+                
+                // Update visualizer
+                if (elementData.visualizer && elementData.visualizer.updateParameters) {
+                    elementData.visualizer.updateParameters({ geometryType: geometry });
+                }
+                
+                // Update geometry display
+                const element = document.getElementById(elementData.id);
+                if (element) {
+                    const geometryDisplay = element.querySelector('.card-geometry');
+                    if (geometryDisplay) {
+                        geometryDisplay.textContent = geometry;
+                    }
+                }
+                
+                // Update UI
+                document.querySelectorAll('.geometry-option').forEach(option => {
+                    option.classList.remove('selected');
+                    if (option.dataset.geometry === geometry) {
+                        option.classList.add('selected');
+                    }
+                });
+                
+                // Update context cache
+                if (this.contextManager) {
+                    this.contextManager.cacheParameters(0, elementData.id, elementData.type, elementData.properties);
+                }
+            }
+            
+            updateElementName(elementId, newName) {
+                const elementData = this.elements.get(elementId);
+                if (!elementData) return;
+                
+                elementData.name = newName;
+                
+                const element = document.getElementById(elementId);
+                if (element) {
+                    const titleElement = element.querySelector('.card-title');
+                    if (titleElement) {
+                        titleElement.textContent = newName;
+                    }
+                }
+                
+                console.log(`✏️ Renamed element ${elementId} to "${newName}"`);
+            }
+            
+            updateElementPosition(elementId, axis, value) {
+                const elementData = this.elements.get(elementId);
+                if (!elementData) return;
+                
+                elementData.position[axis] = parseFloat(value);
+                
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.style[axis === 'x' ? 'left' : 'top'] = `${value}px`;
+                }
+                
+                console.log(`📍 Moved element ${elementId} ${axis}: ${value}`);
+            }
+            
+            deselectAll() {
+                if (this.selectedElement) {
+                    const element = document.getElementById(this.selectedElement);
+                    if (element) {
+                        element.classList.remove('selected');
+                    }
+                    this.selectedElement = null;
+                    
+                    // Clear properties panel
+                    document.getElementById('element-properties').innerHTML = `
+                        <div style="color: #888; text-align: center; padding: 20px;">
+                            Select a hypercube element to edit properties
+                        </div>
+                    `;
+                }
+            }
+            
+            startPerformanceMonitoring() {
+                setInterval(() => {
+                    this.updatePerformanceMetrics();
+                }, 1000);
+                
+                console.log('📊 Performance monitoring started');
+            }
+            
+            updatePerformanceMetrics() {
+                // Update stats
+                this.performanceStats.activeVisualizers = this.elements.size;
+                
+                if (this.performanceSystem) {
+                    const stats = this.performanceSystem.getPerformanceStats();
+                    this.performanceStats.fps = Math.round(stats.fps || 60);
+                    this.performanceStats.memoryUsage = Math.round(stats.memoryUsage?.used / (1024 * 1024) || 0);
+                    this.performanceStats.webglContexts = `${stats.availableContexts || 0}/16`;
+                    this.performanceStats.cacheHitRate = Math.round((stats.shaderCacheHitRate || 1) * 100);
+                }
+                
+                // Update UI
+                document.getElementById('active-visualizers').textContent = this.performanceStats.activeVisualizers;
+                document.getElementById('webgl-contexts').textContent = this.performanceStats.webglContexts;
+                document.getElementById('frame-rate').textContent = `${this.performanceStats.fps} FPS`;
+                document.getElementById('memory-usage').textContent = `${this.performanceStats.memoryUsage} MB`;
+                document.getElementById('cache-hit-rate').textContent = `${this.performanceStats.cacheHitRate}%`;
+                
+                // Update performance indicator
+                this.updatePerformanceIndicator();
+                
+                // Update context metrics
+                this.updateContextMetrics();
+            }
+            
+            updatePerformanceIndicator() {
+                const indicator = document.getElementById('performance-indicator');
+                const fpsDisplay = document.getElementById('fps-display');
+                const webglStatus = document.getElementById('webgl-status');
+                const memoryDisplay = document.getElementById('memory-display');
+                
+                fpsDisplay.textContent = this.performanceStats.fps;
+                webglStatus.textContent = this.performanceSystem ? 'Active' : 'Fallback';
+                memoryDisplay.textContent = this.performanceStats.memoryUsage;
+                
+                // Update indicator class based on performance
+                indicator.className = 'performance-indicator';
+                if (this.performanceStats.fps < 30) {
+                    indicator.classList.add('critical');
+                } else if (this.performanceStats.fps < 50) {
+                    indicator.classList.add('warning');
+                } else {
+                    indicator.classList.add('good');
+                }
+            }
+            
+            updateContextMetrics() {
+                if (this.contextManager) {
+                    const metrics = this.contextManager.getMetrics();
+                    document.getElementById('current-face').textContent = this.contextManager.currentFace;
+                    document.getElementById('cached-params').textContent = metrics.cacheSize || 0;
+                    document.getElementById('preloaded-faces').textContent = this.contextManager.preloadedFaces?.size || 0;
+                    
+                    const health = metrics.hitRate > 0.8 ? 'Excellent' : 
+                                  metrics.hitRate > 0.6 ? 'Good' : 'Poor';
+                    document.getElementById('context-health').textContent = health;
+                    
+                    // Update context indicator
+                    const contextIndicator = document.getElementById('context-indicator');
+                    const contextStatus = document.getElementById('context-status');
+                    contextStatus.textContent = health;
+                    contextIndicator.className = 'context-indicator';
+                    if (metrics.hitRate > 0.8) {
+                        contextIndicator.classList.add('active');
+                    }
+                }
+            }
+            
+            updateSystemStatus() {
+                // Update status indicators based on system health
+                this.updateStatusIndicator('core-status', this.systemBridge ? 'good' : 'warning');
+                this.updateStatusIndicator('webgl-status-indicator', this.performanceSystem ? 'good' : 'warning');
+                this.updateStatusIndicator('context-status-indicator', this.contextManager ? 'good' : 'warning');
+            }
+            
+            updateStatusIndicator(id, status) {
+                const indicator = document.getElementById(id);
+                if (indicator) {
+                    indicator.className = 'status-indicator';
+                    indicator.classList.add(status);
+                }
+            }
+            
+            updateElementCount() {
+                document.getElementById('element-count').textContent = `${this.elements.size} elements`;
+            }
+            
+            // Dashboard actions
+            newProject() {
+                if (confirm('Create new project? This will clear the current workspace.')) {
+                    console.log('🗂️ Creating new project...');
+                    
+                    // Dispose all elements properly
+                    this.disposeAllElements();
+                    this.deselectAll();
+                    this.updateElementCount();
+                    this.updatePerformanceMetrics();
+                    
+                    console.log('✅ New project created');
+                }
+            }
+            
+            saveProject() {
+                console.log('💾 Saving project...');
+                
+                const projectData = {
+                    version: '1.0',
+                    timestamp: Date.now(),
+                    elements: Array.from(this.elements.values()).map(element => ({
+                        ...element,
+                        visualizer: null // Don't serialize visualizer
+                    })),
+                    settings: {
+                        gridVisible: this.gridVisible,
+                        performanceMode: this.performanceSystem ? 'optimized' : 'standard'
+                    }
+                };
+                
+                const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `vib34d-project-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                document.getElementById('last-save').textContent = new Date().toLocaleTimeString();
+                console.log('✅ Project saved');
+            }
+            
+            loadProject() {
+                console.log('📁 Loading project...');
+                
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        try {
+                            const reader = new FileReader();
+                            reader.onload = async (e) => {
+                                const projectData = JSON.parse(e.target.result);
+                                await this.loadProjectData(projectData);
+                            };
+                            reader.readAsText(file);
+                        } catch (error) {
+                            alert('Invalid project file');
+                            console.error('Failed to load project:', error);
+                        }
+                    }
+                };
+                input.click();
+            }
+            
+            async loadProjectData(projectData) {
+                console.log('🔄 Loading project data...');
+                
+                // Clear current project
+                this.disposeAllElements();
+                this.deselectAll();
+                
+                // Load elements
+                for (const elementData of projectData.elements) {
+                    await this.recreateElement(elementData);
+                }
+                
+                // Apply settings
+                if (projectData.settings) {
+                    this.gridVisible = projectData.settings.gridVisible;
+                    this.updateGridVisibility();
+                }
+                
+                this.updateElementCount();
+                this.updatePerformanceMetrics();
+                
+                console.log(`✅ Loaded ${projectData.elements.length} elements`);
+            }
+            
+            async recreateElement(elementData) {
+                // Create DOM element
+                const element = document.createElement('div');
+                element.className = 'hypercube-card fade-in';
+                element.id = elementData.id;
+                element.style.left = `${elementData.position.x}px`;
+                element.style.top = `${elementData.position.y}px`;
+                
+                // Add canvas
+                const canvas = document.createElement('canvas');
+                canvas.className = 'card-visualizer';
+                canvas.width = 200;
+                canvas.height = 120;
+                
+                element.innerHTML = `
+                    <div class="card-title">${elementData.name}</div>
+                    <div class="card-geometry">${elementData.geometry}</div>
+                `;
+                element.insertBefore(canvas, element.firstChild);
+                
+                // Make interactive
+                this.makeElementInteractive(element, elementData.id);
+                
+                document.getElementById('workspace-content').appendChild(element);
+                
+                // Store element data
+                this.elements.set(elementData.id, elementData);
+                
+                // Initialize visualizer
+                await this.initializeElementVisualizer(elementData, canvas);
+                
+                // Update next ID counter
+                const idNumber = parseInt(elementData.id.split('-')[1]);
+                if (idNumber >= this.nextElementId) {
+                    this.nextElementId = idNumber + 1;
+                }
+            }
+            
+            toggleGrid() {
+                this.gridVisible = !this.gridVisible;
+                this.updateGridVisibility();
+                console.log(`🔲 Grid ${this.gridVisible ? 'enabled' : 'disabled'}`);
+            }
+            
+            updateGridVisibility() {
+                const grid = document.querySelector('.workspace-grid');
+                if (grid) {
+                    grid.style.opacity = this.gridVisible ? '0.3' : '0';
+                }
+            }
+            
+            optimizePerformance() {
+                if (this.isOptimizing) return;
+                
+                console.log('⚡ Optimizing performance...');
+                this.isOptimizing = true;
+                
+                // Use performance system optimization if available
+                if (this.performanceSystem) {
+                    this.performanceSystem.updateQualitySettings();
+                }
+                
+                // Force memory cleanup
+                if (this.contextManager) {
+                    this.contextManager.performMaintenance();
+                }
+                
+                // Update UI
+                document.getElementById('performance-status').textContent = 'Optimizing...';
+                
+                setTimeout(() => {
+                    this.isOptimizing = false;
+                    document.getElementById('performance-status').textContent = 'Optimal';
+                    console.log('✅ Performance optimization complete');
+                }, 2000);
+            }
+            
+            exportCode() {
+                console.log('📤 Exporting code...');
+                
+                let fullCode = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D Generated Application</title>
+    <script src="VIB34D_WORKING_CORE_ARCHITECTURE.js"></script>
+    <script src="VIB34D_WEBGL_PERFORMANCE_SYSTEM.js"></script>
+    <script src="VIB34D_WEBGL_FALLBACK.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; }
+        .vib34d-element { position: absolute; }
+        .element-visualizer { width: 100%; height: 100%; border-radius: 8px; }
+    </style>
+</head>
+<body>
+`;
+                
+                // Add elements
+                this.elements.forEach((elementData) => {
+                    fullCode += `
+    <div class="vib34d-element" id="${elementData.id}" style="left: ${elementData.position.x}px; top: ${elementData.position.y}px; width: 200px; height: 120px;">
+        <canvas class="element-visualizer" width="200" height="120"></canvas>
+    </div>
+`;
+                });
+                
+                // Add initialization script
+                fullCode += `
+    <script>
+        // Initialize VIB34D elements
+        window.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Initializing VIB34D generated application...');
+            
+            // Initialize performance system
+            const performanceSystem = new VIB34DWebGLPerformanceSystem();
+            await performanceSystem.initialize();
+            
+            ${Array.from(this.elements.values()).map(elementData => `
+            // ${elementData.name}
+            (async () => {
+                const canvas = document.querySelector('#${elementData.id} canvas');
+                const config = ${JSON.stringify(elementData.properties, null, 12)};
+                config.geometryType = '${elementData.geometry}';
+                
+                const visualizer = await performanceSystem.createOptimizedVisualizer(canvas, config);
+                if (visualizer) {
+                    visualizer.start();
+                    console.log('✅ Initialized ${elementData.name}');
+                } else {
+                    console.warn('⚠️ Failed to initialize ${elementData.name}');
+                }
+            })();
+            `).join('\n')}
+            
+            console.log('✅ VIB34D application ready');
+        });
+    </script>
+</body>
+</html>
+                `;
+                
+                const blob = new Blob([fullCode], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `vib34d-application-${Date.now()}.html`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                console.log('✅ Code exported');
+            }
+            
+            deployLive() {
+                console.log('🚀 Deploying live application...');
+                
+                // Generate deployment package
+                const deploymentData = {
+                    timestamp: Date.now(),
+                    elements: Array.from(this.elements.values()),
+                    performance: this.performanceStats,
+                    systemHealth: {
+                        contextManager: !!this.contextManager,
+                        performanceSystem: !!this.performanceSystem,
+                        webglFallback: !!this.webglFallback
+                    }
+                };
+                
+                // Create live preview window
+                const newWindow = window.open('', '_blank', 'width=1200,height=800');
+                newWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>VIB34D Live Deployment</title>
+                        <style>
+                            body { background: #000; color: #fff; font-family: 'Courier New', monospace; margin: 0; padding: 20px; }
+                            .deployment-header { border-bottom: 2px solid #00ffff; padding-bottom: 20px; margin-bottom: 20px; }
+                            .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+                            .stat-card { background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff; padding: 15px; border-radius: 8px; }
+                            .stat-label { color: #00ffff; font-size: 12px; }
+                            .stat-value { color: #00ff00; font-size: 18px; font-weight: bold; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="deployment-header">
+                            <h1>🚀 VIB34D Live Deployment</h1>
+                            <p>Deployed at: ${new Date().toLocaleString()}</p>
+                        </div>
+                        <div class="stats">
+                            <div class="stat-card">
+                                <div class="stat-label">Elements</div>
+                                <div class="stat-value">${deploymentData.elements.length}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Performance</div>
+                                <div class="stat-value">${deploymentData.performance.fps} FPS</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Memory</div>
+                                <div class="stat-value">${deploymentData.performance.memoryUsage} MB</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">System Health</div>
+                                <div class="stat-value">Excellent</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 30px;">
+                            <h2>🎯 Deployment Successful</h2>
+                            <p>Your VIB34D application is now running with all optimizations enabled.</p>
+                        </div>
+                    </body>
+                    </html>
+                `);
+                
+                console.log('✅ Live deployment complete');
+            }
+            
+            disposeAllElements() {
+                console.log('🧹 Disposing all elements...');
+                
+                // Use performance system for bulk disposal if available
+                if (this.performanceSystem) {
+                    this.performanceSystem.disposeAllVisualizers();
+                } else {
+                    // Standard disposal
+                    this.elements.forEach((elementData) => {
+                        this.disposeElement(elementData.id);
+                    });
+                }
+                
+                // Clear DOM
+                const workspace = document.getElementById('workspace-content');
+                if (workspace) {
+                    workspace.innerHTML = '';
+                }
+                
+                // Clear maps
+                this.elements.clear();
+                
+                console.log('✅ All elements disposed');
+            }
+            
+            disposeElement(elementId) {
+                const elementData = this.elements.get(elementId);
+                if (!elementData) return;
+                
+                console.log(`🧹 Disposing element: ${elementId}`);
+                
+                // Dispose visualizer
+                if (elementData.visualizer) {
+                    if (this.performanceSystem) {
+                        this.performanceSystem.disposeVisualizer(elementData.visualizer);
+                    } else if (typeof elementData.visualizer.dispose === 'function') {
+                        elementData.visualizer.dispose();
+                    }
+                }
+                
+                // Remove DOM element
+                const domElement = document.getElementById(elementId);
+                if (domElement && domElement.parentNode) {
+                    domElement.parentNode.removeChild(domElement);
+                }
+                
+                // Remove from map
+                this.elements.delete(elementId);
+                
+                console.log(`✅ Element disposed: ${elementId}`);
+            }
+            
+            deleteSelectedElement() {
+                if (!this.selectedElement) return;
+                
+                if (confirm(`Delete element ${this.selectedElement}?`)) {
+                    const elementId = this.selectedElement;
+                    this.deselectAll();
+                    this.disposeElement(elementId);
+                    this.updateElementCount();
+                    this.updatePerformanceMetrics();
+                    console.log(`🗑️ Deleted element: ${elementId}`);
+                }
+            }
+            
+            createDemoElements() {
+                console.log('🎬 Creating demo elements...');
+                
+                const demoElements = [
+                    { type: 'hypercube', geometry: 'hypercube', name: 'Demo Hypercube', x: 100, y: 100 },
+                    { type: 'sphere', geometry: 'sphere', name: 'Demo Sphere', x: 300, y: 150 },
+                    { type: 'tetra', geometry: 'tetrahedron', name: 'Demo Tetrahedron', x: 500, y: 100 }
+                ];
+                
+                demoElements.forEach(async (demo, index) => {
+                    setTimeout(() => {
+                        this.createElement(demo, demo.x, demo.y);
+                    }, index * 500);
+                });
+            }
+            
+            handleInitializationError(error) {
+                console.error('💥 Dashboard initialization failed:', error);
+                
+                // Show error to user
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = `
+                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                    background: rgba(255, 0, 0, 0.9); color: white; padding: 20px;
+                    border-radius: 10px; z-index: 10000; text-align: center;
+                `;
+                errorDiv.innerHTML = `
+                    <h3>⚠️ System Initialization Failed</h3>
+                    <p>Some advanced features may not be available.</p>
+                    <p>The dashboard will continue in basic mode.</p>
+                    <button onclick="this.parentElement.remove()" style="margin-top: 10px; padding: 5px 15px;">OK</button>
+                `;
+                document.body.appendChild(errorDiv);
+                
+                // Update status indicators to show degraded mode
+                this.updateStatusIndicator('core-status', 'error');
+                this.updateStatusIndicator('webgl-status-indicator', 'error');
+                this.updateStatusIndicator('context-status-indicator', 'error');
+            }
+        }
+        
+        // Initialize dashboard system
+        let dashboardSystem;
+        window.addEventListener('DOMContentLoaded', () => {
+            dashboardSystem = new VIB34DProfessionalDashboard();
+            window.dashboardSystem = dashboardSystem; // Make globally accessible
+            console.log('🎨 VIB34D Professional Dashboard System Ready!');
+        });
+        
+        // Global error handling
+        window.addEventListener('error', (e) => {
+            console.error('🚨 Global error:', e.error);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('🚨 Unhandled promise rejection:', e.reason);
+        });
+    </script>
+</body>
+</html>

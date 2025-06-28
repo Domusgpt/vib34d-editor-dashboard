@@ -12,6 +12,10 @@ class VIB3HomeMaster {
     constructor() {
         console.log('🏠 VIB3HomeMaster - Single Source of Truth Initializing...');
         
+        // Initialize context manager for bulletproof state preservation
+        this.contextManager = null;
+        this.initializeContextManager();
+        
         // Configuration system integration
         this.editorConfig = null;
         this.loadEditorConfiguration();
@@ -135,6 +139,16 @@ class VIB3HomeMaster {
                 intensityMod: 0.9, speedMod: 0.7, densityMod: 1.1, complexityMod: 0.6,
                 geometry: 7.0, geometryThemeName: 'crystal', // Assuming 7.0 is Crystal ID
                 baseColor: [0.0, 0.7, 1.0], name: 'CONTEXT' // Example color
+            },
+            6: { // INNOVATION - Fractal Emergence (Corresponds to faceIndex 4)
+                intensityMod: 1.2, speedMod: 1.3, densityMod: 1.3, complexityMod: 1.4,
+                geometry: 8.0, geometryThemeName: 'fractal',
+                baseColor: [0.8, 0.3, 0.9], name: 'INNOVATION'
+            },
+            7: { // SYNTHESIS - Klein Bottle (Corresponds to faceIndex 6)
+                intensityMod: 1.1, speedMod: 0.9, densityMod: 1.0, complexityMod: 1.2,
+                geometry: 5.0, geometryThemeName: 'klein',
+                baseColor: [0.9, 0.6, 0.2], name: 'SYNTHESIS'
             }
             // Note: DualNavigationSystem also refers to faceIndex 4 (Innovation/Fractal)
             // and potentially 6 (Klein), 7 (Torus, different from Audio's Torus unless IDs are shared)
@@ -195,6 +209,66 @@ class VIB3HomeMaster {
                 dimensionBoost: 0.2,
                 interactionSensitivity: 1.5,
                 color: 'complement'
+            },
+            'board': {
+                gridScale: 0.3,
+                morphScale: 0.1,
+                rotationScale: 0.2,
+                dimensionBoost: -0.3,
+                interactionSensitivity: 0.2,
+                color: 'base',
+                opacity: 0.8,
+                zOffset: -0.5
+            },
+            'bezel': {
+                gridScale: 0.5,
+                morphScale: 0.15,
+                rotationScale: 0.25,
+                dimensionBoost: -0.15,
+                interactionSensitivity: 0.4,
+                color: 'darken',
+                opacity: 0.9,
+                zOffset: -0.25
+            },
+            'frame': {
+                gridScale: 0.7,
+                morphScale: 0.2,
+                rotationScale: 0.3,
+                dimensionBoost: -0.05,
+                interactionSensitivity: 0.6,
+                color: 'base',
+                opacity: 0.95,
+                zOffset: -0.1
+            },
+            'glow': {
+                gridScale: 1.8,
+                morphScale: 0.6,
+                rotationScale: 0.8,
+                dimensionBoost: 0.3,
+                interactionSensitivity: 2.0,
+                color: 'brighten',
+                opacity: 0.3,
+                zOffset: 0.2
+            },
+            'particle': {
+                gridScale: 2.0,
+                morphScale: 1.5,
+                rotationScale: 1.8,
+                dimensionBoost: 0.4,
+                interactionSensitivity: 2.5,
+                color: 'complement',
+                opacity: 0.2,
+                zOffset: 0.3
+            },
+            'card': {
+                gridScale: 1.2,
+                morphScale: 0.9,
+                rotationScale: 1.1,
+                dimensionBoost: 0.05,
+                interactionSensitivity: 1.3,
+                color: 'base',
+                opacity: 1.0,
+                zOffset: 0.0
             }
         };
         
@@ -327,6 +401,16 @@ class VIB3HomeMaster {
             return this.getParametersForSection(0); // Default to HOME
         }
         
+        // Check context manager for cached parameters first
+        if (this.contextManager) {
+            const cachedParams = this.contextManager.getCachedParameters(
+                this.masterState.activeSection, sectionKey, 'section'
+            );
+            if (cachedParams) {
+                return cachedParams;
+            }
+        }
+        
         // Get page relation config from editor
         const pageRelation = this.editorConfig?.editorDashboard?.pageRelations?.[this.getSectionName(sectionKey)];
         
@@ -360,14 +444,31 @@ class VIB3HomeMaster {
             baseParams.colorVibrancy = this.masterState.editorOverrides.colorVibrancy;
         }
         
+        // Cache the calculated parameters for future use
+        if (this.contextManager) {
+            this.contextManager.cacheParameters(
+                this.masterState.activeSection, sectionKey, 'section', baseParams
+            );
+        }
+        
         return baseParams;
     }
     
     /**
      * Get section name from key for editor config lookup
+     * Updated to support all 8 hypercube faces
      */
     getSectionName(sectionKey) {
-        const sectionNames = ['home', 'tech', 'media', 'audio', 'quantum'];
+        const sectionNames = [
+            'home',      // 0: HOME - Hypercube Foundation
+            'tech',      // 1: TECH - Tetrahedron Precision
+            'media',     // 2: MEDIA - Sphere Potential
+            'audio',     // 3: AUDIO - Torus Flow
+            'quantum',   // 4: QUANTUM - Wave Nexus
+            'context',   // 5: CONTEXT - Crystal Lattice
+            'innovation',// 6: INNOVATION - Fractal Emergence
+            'synthesis'  // 7: SYNTHESIS - Klein Bottle
+        ];
         return sectionNames[sectionKey] || 'home';
     }
     
@@ -384,6 +485,16 @@ class VIB3HomeMaster {
             return sectionParams;
         }
         
+        // Check context manager for cached instance parameters
+        if (this.contextManager) {
+            const cachedParams = this.contextManager.getCachedParameters(
+                this.masterState.activeSection, sectionKey, role
+            );
+            if (cachedParams) {
+                return cachedParams;
+            }
+        }
+        
         // Apply role-specific modifiers
         const finalParams = {
             geometry: sectionParams.geometry,
@@ -392,6 +503,10 @@ class VIB3HomeMaster {
             morphFactor: sectionParams.complexity * roleConfig.morphScale,
             dimension: sectionParams.dimension + roleConfig.dimensionBoost,
             intensity: sectionParams.intensity,
+            
+            // Role-specific visual properties
+            opacity: roleConfig.opacity || 1.0,
+            zOffset: roleConfig.zOffset || 0.0,
             
             // Color modifications based on role
             baseColor: this.applyColorModification(sectionParams.baseColor, roleConfig.color),
@@ -405,7 +520,145 @@ class VIB3HomeMaster {
             coherence: sectionParams.coherence
         };
         
+        // Cache the calculated instance parameters for future use
+        if (this.contextManager) {
+            this.contextManager.cacheParameters(
+                this.masterState.activeSection, sectionKey, role, finalParams
+            );
+        }
+        
         return finalParams;
+    }
+    
+    /**
+     * Initialize context manager for bulletproof state preservation
+     */
+    async initializeContextManager() {
+        try {
+            // Import context manager if not already available
+            if (typeof VIB34DContextManager === 'undefined') {
+                console.log('📦 Loading VIB34DContextManager...');
+                // In a real implementation, you might dynamically import here
+                await this.loadContextManager();
+            }
+            
+            this.contextManager = new VIB34DContextManager();
+            
+            // Set up context preservation events
+            this.setupContextPreservation();
+            
+            console.log('✅ Context Manager initialized successfully');
+            
+        } catch (error) {
+            console.warn('⚠️ Failed to initialize Context Manager:', error);
+            this.contextManager = null;
+        }
+    }
+    
+    /**
+     * Load context manager dynamically (fallback)
+     */
+    async loadContextManager() {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = './core/VIB34DContextManager.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+    
+    /**
+     * Set up context preservation event listeners
+     */
+    setupContextPreservation() {
+        if (!this.contextManager) return;
+        
+        // Listen for section changes in transitionToSection
+        const originalTransitionToSection = this.transitionToSection.bind(this);
+        this.transitionToSection = (newSection) => {
+            const oldSection = this.masterState.activeSection;
+            const result = originalTransitionToSection(newSection);
+            
+            // Notify context manager of section transition
+            if (oldSection !== newSection) {
+                this.contextManager.handleFaceTransition({
+                    fromFace: oldSection,
+                    toFace: newSection,
+                    transitionType: 'section_change',
+                    preserveContext: true
+                });
+            }
+            
+            return result;
+        };
+        
+        // Listen for parameter changes
+        const originalSetParameter = this.setParameter.bind(this);
+        this.setParameter = (parameterId, value) => {
+            const oldValue = this.getParameterValue(parameterId);
+            const result = originalSetParameter(parameterId, value);
+            
+            // Notify context manager of parameter change
+            this.contextManager.handleParameterChange({
+                parameterId,
+                oldValue,
+                newValue: value,
+                source: 'manual',
+                timestamp: Date.now()
+            });
+            
+            return result;
+        };
+    }
+    
+    /**
+     * Get current parameter value for context tracking
+     */
+    getParameterValue(parameterId) {
+        switch (parameterId) {
+            case 'intensity': return this.masterState.intensity;
+            case 'speed': return this.masterState.speed;
+            case 'density': return this.masterState.density;
+            case 'dimension': return this.masterState.dimension;
+            case 'complexity': return this.masterState.complexity;
+            case 'coherence': return this.masterState.coherence;
+            default: return null;
+        }
+    }
+    
+    /**
+     * Enable context manager debug mode
+     */
+    enableContextDebug(enabled = true) {
+        if (this.contextManager) {
+            this.contextManager.setDebugMode(enabled);
+        }
+    }
+    
+    /**
+     * Get context manager metrics
+     */
+    getContextMetrics() {
+        return this.contextManager ? this.contextManager.getMetrics() : null;
+    }
+    
+    /**
+     * Force save current state
+     */
+    saveCurrentState() {
+        if (this.contextManager) {
+            this.contextManager.saveCurrentState();
+        }
+    }
+    
+    /**
+     * Clear all context cache
+     */
+    clearContextCache() {
+        if (this.contextManager) {
+            this.contextManager.clearCache();
+        }
     }
     
     /**
@@ -458,18 +711,39 @@ class VIB3HomeMaster {
     }
     
     /**
-     * Transition to a new section with smooth interpolation
+     * Transition to a new section with smooth interpolation and context preservation
      */
     transitionToSection(newSection) {
         if (newSection === this.masterState.activeSection) return;
         
+        // Validate section exists (support for all 8 hypercube faces)
+        if (!this.sectionModifiers[newSection]) {
+            console.warn(`[VIB3HomeMaster] Invalid section: ${newSection}. Available sections: 0-7. Falling back to HOME.`);
+            newSection = 0;
+        }
+        
         console.log(`🌀 VIB3HomeMaster transitioning: ${this.sectionModifiers[this.masterState.activeSection].name} → ${this.sectionModifiers[newSection].name}`);
+        
+        // Trigger preloading of adjacent faces if context manager is available
+        if (this.contextManager) {
+            this.contextManager.preloadAdjacentFaces(newSection);
+        }
         
         this.masterState.activeSection = newSection;
         this.masterState.transitionProgress = 0.0;
         
         // Trigger coherence enhancement during transitions
         this.masterState.coherence = 1.5; // Temporarily boost system unity
+        
+        // Dispatch event for context manager and other systems
+        window.dispatchEvent(new CustomEvent('vib34d:faceTransition', {
+            detail: {
+                fromFace: this.masterState.activeSection,
+                toFace: newSection,
+                transitionType: 'section_change',
+                preserveContext: true
+            }
+        }));
     }
     
     /**
